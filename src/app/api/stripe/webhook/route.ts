@@ -4,16 +4,12 @@ import { db, schema } from '@/db'
 import { eq } from 'drizzle-orm'
 
 export async function POST(request: NextRequest) {
-  console.log('🔔 Stripe webhook received!')
 
   const body = await request.text()
   const signature = request.headers.get('stripe-signature')
 
-  console.log('📝 Body length:', body.length)
-  console.log('🔑 Signature present:', !!signature)
 
   if (!signature) {
-    console.error('❌ Missing signature')
     return NextResponse.json({ error: 'Missing signature' }, { status: 400 })
   }
 
@@ -26,9 +22,7 @@ export async function POST(request: NextRequest) {
   try {
     // Parse the event (we'll verify below)
     event = JSON.parse(body) as Stripe.Event
-    console.log('📦 Event type:', event.type)
   } catch (err) {
-    console.error('Webhook parsing error:', err)
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
   }
 
@@ -37,16 +31,12 @@ export async function POST(request: NextRequest) {
     case 'checkout.session.completed': {
       const session = event.data.object as Stripe.Checkout.Session
 
-      console.log('🎉 Checkout session completed!')
-      console.log('📋 Session metadata:', session.metadata)
 
       // Get invoice ID from metadata
       const invoiceId = session.metadata?.invoiceId
 
-      console.log('🧾 Invoice ID:', invoiceId)
 
       if (!invoiceId) {
-        console.error('No invoiceId in webhook metadata')
         return NextResponse.json({ error: 'Missing invoiceId' }, { status: 400 })
       }
 
@@ -57,7 +47,6 @@ export async function POST(request: NextRequest) {
       })
 
       if (!invoice) {
-        console.error('Invoice not found:', invoiceId)
         return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
       }
 
@@ -73,7 +62,6 @@ export async function POST(request: NextRequest) {
             invoice.organization.stripeWebhookSecret
           )
         } catch (err) {
-          console.error('Webhook signature verification failed:', err)
           return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
         }
       }
@@ -91,32 +79,34 @@ export async function POST(request: NextRequest) {
       await db.insert(schema.payments).values({
         organizationId: invoice.organizationId,
         invoiceId: invoice.id,
-        amount: invoice.total,
-        paymentDate: new Date(),
-        paymentMethod: 'stripe',
-        reference: session.id,
+        amount: invoice.total || 0,
+        paidAt: new Date(),
+        method: 'stripe',
+        stripePaymentIntentId: (session.payment_intent as string) || session.id,
       })
 
       // Create notification for the freelancer
-      try {
-        await db.insert(schema.notifications).values({
-          organizationId: invoice.organizationId,
-          type: 'payment_received',
-          title: 'Paiement reçu 💰',
-          message: `La facture ${invoice.number} a été payée (${(invoice.total / 100).toFixed(2)} €)`,
-          data: { invoiceId: invoice.id } as any,
-        })
-      } catch (notifError) {
-        console.error('Failed to create notification:', notifError)
-        // Don't fail the webhook for notification errors
+      if (invoice.createdById) {
+        try {
+          await db.insert(schema.notifications).values({
+            organizationId: invoice.organizationId,
+            userId: invoice.createdById,
+            type: 'payment_received',
+            title: 'Paiement reçu 💰',
+            body: `La facture ${invoice.number} a été payée (${(invoice.total || 0 / 100).toFixed(2)} €)`,
+            metadata: { invoiceId: invoice.id },
+          })
+        } catch (notifError) {
+          console.error('Failed to create notification:', notifError)
+          // Don't fail the webhook for notification errors
+        }
       }
 
-      console.log(`✅ Invoice ${invoice.number} marked as paid`)
       break
     }
 
     default:
-      console.log(`Unhandled event type: ${event.type}`)
+
   }
 
   return NextResponse.json({ received: true })

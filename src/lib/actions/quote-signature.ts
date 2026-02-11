@@ -58,9 +58,9 @@ export async function getPublicQuote(quoteId: string) {
      total: item.total,
     })),
     contact: quote.contact ? {
-     name: quote.contact.name,
+     name: [quote.contact.firstName, quote.contact.lastName].filter(Boolean).join(' ') || 'Contact',
      email: quote.contact.email,
-     companyName: quote.contact.companyName,
+     companyName: quote.company?.name || null,
     } : null,
     organization: {
      name: quote.organization?.name || 'Entreprise',

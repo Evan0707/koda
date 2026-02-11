@@ -13,7 +13,7 @@ export async function getGmailStatus() {
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
-    return { connected: false, email: null }
+    return { connected: false, email: null, connectedAt: null }
   }
 
   return await isGmailConnected(user.id)

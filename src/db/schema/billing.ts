@@ -179,6 +179,7 @@ export const payments = pgTable('payments', {
 
  method: text('method').notNull(), // card, bank_transfer, cash, check
  status: text('status').default('pending'), // pending, succeeded, failed, refunded
+ reference: text('reference'),
 
  // Stripe
  stripePaymentIntentId: text('stripe_payment_intent_id'),

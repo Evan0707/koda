@@ -15,6 +15,7 @@ export async function getPublicInvoice(invoiceId: string) {
    ),
    with: {
     contact: true,
+    company: true,
     items: true,
     organization: {
      columns: {
@@ -63,9 +64,9 @@ export async function getPublicInvoice(invoiceId: string) {
      total: item.total,
     })),
     contact: invoice.contact ? {
-     name: invoice.contact.name,
+     name: [invoice.contact.firstName, invoice.contact.lastName].filter(Boolean).join(' ') || 'Contact',
      email: invoice.contact.email,
-     companyName: invoice.contact.companyName,
+     companyName: invoice.company?.name || null,
     } : null,
     organization: {
      name: invoice.organization?.name || 'Entreprise',
@@ -128,7 +129,7 @@ export async function createCheckoutSession(invoiceId: string) {
        name: `Facture ${invoice.number}`,
        description: `Paiement de la facture ${invoice.number}`,
       },
-      unit_amount: invoice.total, // Already in cents
+      unit_amount: invoice.total ?? 0, // Already in cents
      },
      quantity: 1,
     },
@@ -170,9 +171,9 @@ export async function markInvoiceAsPaid(invoiceId: string, stripeSessionId?: str
    await db.insert(schema.payments).values({
     organizationId: invoice.organizationId,
     invoiceId: invoice.id,
-    amount: invoice.total,
-    paymentDate: new Date(),
-    paymentMethod: 'stripe',
+    amount: invoice.total ?? 0,
+    paidAt: new Date(),
+    method: 'stripe',
     reference: stripeSessionId || 'manual',
    })
   }

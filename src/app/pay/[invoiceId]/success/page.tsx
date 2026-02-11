@@ -50,9 +50,9 @@ async function verifyAndMarkPaid(invoiceId: string, sessionId: string) {
     await db.insert(schema.payments).values({
      organizationId: invoice.organizationId,
      invoiceId: invoice.id,
-     amount: invoice.total,
-     paymentDate: new Date(),
-     paymentMethod: 'stripe',
+     amount: invoice.total ?? 0,
+     paidAt: new Date(),
+     method: 'stripe',
      reference: sessionId,
     })
    }
@@ -75,7 +75,7 @@ export default async function PaymentSuccessPage({
  const { session_id } = await searchParams
 
  // Verify payment and mark as paid (fallback if webhook didn't fire)
- if (session_id) {
+ if (typeof session_id === 'string') {
   await verifyAndMarkPaid(invoiceId, session_id)
  }
 
