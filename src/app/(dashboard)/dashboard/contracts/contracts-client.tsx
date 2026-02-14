@@ -26,7 +26,6 @@ import { toast } from 'sonner'
 import {
  FileText,
  Plus,
- Search,
  MoreVertical,
  Pencil,
  Trash2,
@@ -55,6 +54,9 @@ import {
 } from '@/lib/actions/contracts'
 import { getTemplateVariables, ContractFormData } from '@/lib/contracts-definitions'
 import { useConfirm } from '@/components/confirm-dialog'
+import { SearchInput } from '@/components/search-input'
+import { FilterSelect } from '@/components/filter-select'
+import { EmptyState } from '@/components/empty-state'
 import Link from 'next/link'
 
 type Contract = {
@@ -95,7 +97,7 @@ type Contact = {
 }
 
 const statusConfig: Record<string, { label: string; color: string; icon: React.ComponentType<{ className?: string }> }> = {
- draft: { label: 'Brouillon', color: 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300', icon: Clock },
+ draft: { label: 'Brouillon', color: 'bg-muted text-muted-foreground', icon: Clock },
  sent: { label: 'Envoyé', color: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300', icon: Send },
  signed: { label: 'Signé', color: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300', icon: CheckCircle },
  expired: { label: 'Expiré', color: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300', icon: Clock },
@@ -299,44 +301,35 @@ export default function ContractsClient({
     <TabsContent value="contracts" className="space-y-4">
      {/* Filters */}
      <div className="flex items-center gap-4">
-      <div className="relative flex-1 max-w-sm">
-       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-       <Input
-        placeholder="Rechercher un contrat..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="pl-10"
-       />
-      </div>
-      <select
+      <SearchInput
+       value={search}
+       onChange={setSearch}
+       placeholder="Rechercher un contrat..."
+      />
+      <FilterSelect
        value={statusFilter}
-       onChange={(e) => setStatusFilter(e.target.value)}
-       className="h-9 px-3 rounded-md border bg-background text-sm"
-      >
-       <option value="all">Tous les statuts</option>
-       <option value="draft">Brouillons</option>
-       <option value="sent">Envoyés</option>
-       <option value="signed">Signés</option>
-       <option value="expired">Expirés</option>
-      </select>
+       onChange={setStatusFilter}
+       options={[
+        { value: 'all', label: 'Tous les statuts' },
+        { value: 'draft', label: 'Brouillons' },
+        { value: 'sent', label: 'Envoyés' },
+        { value: 'signed', label: 'Signés' },
+        { value: 'expired', label: 'Expirés' },
+       ]}
+      />
      </div>
 
      {/* Contracts Grid */}
      {filteredContracts.length === 0 ? (
       <Card>
-       <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-        <FileSignature className="w-12 h-12 text-gray-300 mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-1">Aucun contrat</h3>
-        <p className="text-gray-500 mb-4">Créez votre premier contrat ou utilisez un modèle</p>
-        <div className="flex gap-2">
-         <Button onClick={() => setIsContractDialogOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Nouveau contrat
-         </Button>
-         <Button variant="outline" onClick={() => setActiveTab('templates')}>
-          Voir les modèles
-         </Button>
-        </div>
+       <CardContent>
+        <EmptyState
+         icon={FileSignature}
+         title="Aucun contrat"
+         description="Créez votre premier contrat ou utilisez un modèle"
+         action={{ label: 'Nouveau contrat', onClick: () => setIsContractDialogOpen(true) }}
+         secondaryAction={{ label: 'Voir les modèles', onClick: () => setActiveTab('templates') }}
+        />
        </CardContent>
       </Card>
      ) : (
@@ -352,7 +345,7 @@ export default function ContractsClient({
              <CardTitle className="text-lg truncate">{contract.title}</CardTitle>
              <div className="flex items-center gap-2 mt-1">
               {contract.company && (
-               <span className="text-sm text-gray-500 flex items-center gap-1">
+               <span className="text-sm text-muted-foreground flex items-center gap-1">
                 <Building2 className="w-3 h-3" />
                 {contract.company.name}
                </span>
@@ -411,20 +404,20 @@ export default function ContractsClient({
             </Badge>
 
             {contract.contact && (
-             <div className="flex items-center gap-2 text-sm text-gray-500">
+             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <User className="w-3 h-3" />
               {contract.contact.firstName} {contract.contact.lastName}
              </div>
             )}
 
             {contract.effectiveDate && (
-             <div className="flex items-center gap-2 text-sm text-gray-500">
+             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Calendar className="w-3 h-3" />
               Effectif le {new Date(contract.effectiveDate).toLocaleDateString('fr-FR')}
              </div>
             )}
 
-            <div className="text-xs text-gray-400">
+            <div className="text-xs text-muted-foreground/70">
              Créé le {new Date(contract.createdAt).toLocaleDateString('fr-FR')}
             </div>
            </div>
@@ -439,7 +432,7 @@ export default function ContractsClient({
     {/* Templates Tab */}
     <TabsContent value="templates" className="space-y-4">
      <div className="flex items-center justify-between">
-      <p className="text-gray-500">Modèles de contrats réutilisables</p>
+      <p className="text-muted-foreground">Modèles de contrats réutilisables</p>
       <Button onClick={() => { setEditingTemplate(null); setIsTemplateDialogOpen(true); }}>
        <Plus className="w-4 h-4 mr-2" />
        Nouveau modèle
@@ -448,14 +441,13 @@ export default function ContractsClient({
 
      {templates.length === 0 ? (
       <Card>
-       <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-        <LayoutTemplate className="w-12 h-12 text-gray-300 mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-1">Aucun modèle</h3>
-        <p className="text-gray-500 mb-4">Créez des modèles pour générer des contrats rapidement</p>
-        <Button onClick={() => setIsTemplateDialogOpen(true)}>
-         <Plus className="w-4 h-4 mr-2" />
-         Créer un modèle
-        </Button>
+       <CardContent>
+        <EmptyState
+         icon={LayoutTemplate}
+         title="Aucun modèle"
+         description="Créez des modèles pour générer des contrats rapidement"
+         action={{ label: 'Créer un modèle', onClick: () => setIsTemplateDialogOpen(true) }}
+        />
        </CardContent>
       </Card>
      ) : (
@@ -501,7 +493,7 @@ export default function ContractsClient({
          </CardHeader>
          <CardContent>
           {template.description && (
-           <p className="text-sm text-gray-500 line-clamp-2">{template.description}</p>
+           <p className="text-sm text-muted-foreground line-clamp-2">{template.description}</p>
           )}
           <Button
            variant="outline"
@@ -614,7 +606,7 @@ export default function ContractsClient({
             }))}
            >
             <span className="font-mono text-xs mr-2">{v.key}</span>
-            <span className="text-gray-500">{v.label}</span>
+            <span className="text-muted-foreground">{v.label}</span>
            </DropdownMenuItem>
           ))}
          </DropdownMenuContent>
@@ -693,11 +685,11 @@ export default function ContractsClient({
       <div className="space-y-2">
        <div className="flex items-center justify-between">
         <Label htmlFor="templateContent">Contenu du modèle</Label>
-        <span className="text-xs text-gray-500">Utilisez les variables pour personnaliser</span>
+        <span className="text-xs text-muted-foreground">Utilisez les variables pour personnaliser</span>
        </div>
        <div className="flex flex-wrap gap-1 mb-2">
         {variables.map(v => (
-         <Badge key={v.key} variant="outline" className="text-xs cursor-pointer hover:bg-gray-100">
+         <Badge key={v.key} variant="outline" className="text-xs cursor-pointer hover:bg-muted">
           {v.key}
          </Badge>
         ))}

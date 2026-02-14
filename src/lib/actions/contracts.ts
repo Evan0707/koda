@@ -3,26 +3,18 @@
 import { db, schema } from '@/db'
 import { eq, desc, and, isNull, like, or } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { getOrganizationId, getUser, requirePermission } from '@/lib/auth'
 
 // ============================================
 // CONTRACT TEMPLATES
 // ============================================
 
 export async function getContractTemplates(search?: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Non autorisé' }
-
-  const dbUser = await db.query.users.findFirst({
-    where: eq(schema.users.id, user.id),
-  })
-
-  if (!dbUser?.organizationId) return { templates: [] }
+  const organizationId = await getOrganizationId()
 
   let query = db.query.contractTemplates.findMany({
     where: and(
-      eq(schema.contractTemplates.organizationId, dbUser.organizationId),
+      eq(schema.contractTemplates.organizationId, organizationId),
     ),
     orderBy: [desc(schema.contractTemplates.updatedAt)],
   })
@@ -41,30 +33,26 @@ export async function getContractTemplates(search?: string) {
 }
 
 export async function getContractTemplate(id: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Non autorisé' }
+  const organizationId = await getOrganizationId()
 
   const template = await db.query.contractTemplates.findFirst({
-    where: eq(schema.contractTemplates.id, id),
+    where: and(
+      eq(schema.contractTemplates.id, id),
+      eq(schema.contractTemplates.organizationId, organizationId)
+    ),
   })
 
+  if (!template) return { error: 'Modèle non trouvé' }
   return { template }
 }
 
 export async function createContractTemplate(formData: FormData) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Non autorisé' }
-
-  const dbUser = await db.query.users.findFirst({
-    where: eq(schema.users.id, user.id),
-  })
-
-  if (!dbUser?.organizationId) return { error: 'Organisation non trouvée' }
+  const auth = await requirePermission('manage_contracts')
+  if ('error' in auth) return { error: auth.error }
+  const organizationId = auth.user.organizationId!
 
   const data = {
-    organizationId: dbUser.organizationId,
+    organizationId,
     name: formData.get('name') as string,
     description: formData.get('description') as string || null,
     content: formData.get('content') as string,
@@ -80,9 +68,9 @@ export async function createContractTemplate(formData: FormData) {
 }
 
 export async function updateContractTemplate(id: string, formData: FormData) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Non autorisé' }
+  const auth = await requirePermission('manage_contracts')
+  if ('error' in auth) return { error: auth.error }
+  const organizationId = auth.user.organizationId!
 
   const data = {
     name: formData.get('name') as string,
@@ -94,7 +82,10 @@ export async function updateContractTemplate(id: string, formData: FormData) {
 
   const [template] = await db.update(schema.contractTemplates)
     .set(data)
-    .where(eq(schema.contractTemplates.id, id))
+    .where(and(
+      eq(schema.contractTemplates.id, id),
+      eq(schema.contractTemplates.organizationId, organizationId)
+    ))
     .returning()
 
   revalidatePath('/dashboard/contracts')
@@ -102,12 +93,15 @@ export async function updateContractTemplate(id: string, formData: FormData) {
 }
 
 export async function deleteContractTemplate(id: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Non autorisé' }
+  const auth = await requirePermission('manage_contracts')
+  if ('error' in auth) return { error: auth.error }
+  const organizationId = auth.user.organizationId!
 
   await db.delete(schema.contractTemplates)
-    .where(eq(schema.contractTemplates.id, id))
+    .where(and(
+      eq(schema.contractTemplates.id, id),
+      eq(schema.contractTemplates.organizationId, organizationId)
+    ))
 
   revalidatePath('/dashboard/contracts')
   return { success: true }
@@ -118,19 +112,11 @@ export async function deleteContractTemplate(id: string) {
 // ============================================
 
 export async function getContracts(search?: string, status?: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Non autorisé' }
-
-  const dbUser = await db.query.users.findFirst({
-    where: eq(schema.users.id, user.id),
-  })
-
-  if (!dbUser?.organizationId) return { contracts: [] }
+  const organizationId = await getOrganizationId()
 
   const contracts = await db.query.contracts.findMany({
     where: and(
-      eq(schema.contracts.organizationId, dbUser.organizationId),
+      eq(schema.contracts.organizationId, organizationId),
       isNull(schema.contracts.deletedAt),
     ),
     with: {
@@ -157,12 +143,13 @@ export async function getContracts(search?: string, status?: string) {
 }
 
 export async function getContract(id: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Non autorisé' }
+  const organizationId = await getOrganizationId()
 
   const contract = await db.query.contracts.findFirst({
-    where: eq(schema.contracts.id, id),
+    where: and(
+      eq(schema.contracts.id, id),
+      eq(schema.contracts.organizationId, organizationId)
+    ),
     with: {
       company: true,
       contact: true,
@@ -180,18 +167,13 @@ import type { ContractFormData } from '@/lib/contracts-definitions' // Import up
 
 
 export async function createContract(data: ContractFormData) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Non autorisé' }
-
-  const dbUser = await db.query.users.findFirst({
-    where: eq(schema.users.id, user.id),
-  })
-
-  if (!dbUser?.organizationId) return { error: 'Organisation non trouvée' }
+  const auth = await requirePermission('manage_contracts')
+  if ('error' in auth) return { error: auth.error }
+  const { user } = auth
+  const organizationId = user.organizationId!
 
   const contractData = {
-    organizationId: dbUser.organizationId,
+    organizationId,
     createdById: user.id,
     title: data.title,
     content: data.content,
@@ -212,9 +194,9 @@ export async function createContract(data: ContractFormData) {
 }
 
 export async function updateContract(id: string, data: Partial<ContractFormData>) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Non autorisé' }
+  const auth = await requirePermission('manage_contracts')
+  if ('error' in auth) return { error: auth.error }
+  const organizationId = auth.user.organizationId!
 
   const updateData: Record<string, unknown> = {
     updatedAt: new Date(),
@@ -229,7 +211,10 @@ export async function updateContract(id: string, data: Partial<ContractFormData>
 
   const [contract] = await db.update(schema.contracts)
     .set(updateData)
-    .where(eq(schema.contracts.id, id))
+    .where(and(
+      eq(schema.contracts.id, id),
+      eq(schema.contracts.organizationId, organizationId)
+    ))
     .returning()
 
   revalidatePath('/dashboard/contracts')
@@ -237,9 +222,9 @@ export async function updateContract(id: string, data: Partial<ContractFormData>
 }
 
 export async function updateContractStatus(id: string, status: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Non autorisé' }
+  const auth = await requirePermission('manage_contracts')
+  if ('error' in auth) return { error: auth.error }
+  const organizationId = auth.user.organizationId!
 
   const updateData: Record<string, unknown> = {
     status,
@@ -253,7 +238,10 @@ export async function updateContractStatus(id: string, status: string) {
 
   const [contract] = await db.update(schema.contracts)
     .set(updateData)
-    .where(eq(schema.contracts.id, id))
+    .where(and(
+      eq(schema.contracts.id, id),
+      eq(schema.contracts.organizationId, organizationId)
+    ))
     .returning()
 
   revalidatePath('/dashboard/contracts')
@@ -261,14 +249,17 @@ export async function updateContractStatus(id: string, status: string) {
 }
 
 export async function deleteContract(id: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Non autorisé' }
+  const auth = await requirePermission('manage_contracts')
+  if ('error' in auth) return { error: auth.error }
+  const organizationId = auth.user.organizationId!
 
   // Soft delete
   await db.update(schema.contracts)
     .set({ deletedAt: new Date() })
-    .where(eq(schema.contracts.id, id))
+    .where(and(
+      eq(schema.contracts.id, id),
+      eq(schema.contracts.organizationId, organizationId)
+    ))
 
   revalidatePath('/dashboard/contracts')
   return { success: true }
@@ -279,11 +270,11 @@ export async function replaceTemplateVariables(content: string, contractId: stri
   const { contract } = await getContract(contractId)
   if (!contract) return content
 
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getUser()
+  if (!user) return content
 
   const dbUser = await db.query.users.findFirst({
-    where: eq(schema.users.id, user!.id),
+    where: eq(schema.users.id, user.id),
     with: { organization: true },
   })
 

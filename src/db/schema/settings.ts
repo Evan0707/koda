@@ -84,7 +84,8 @@ export const apiKeys = pgTable('api_keys', {
 })
 
 // ============================================
-// ACTIVITY LOGS (AUDIT)
+// ACTIVITY LOGS (DEPRECATED — use auditLogs from audit.ts instead)
+// Kept for backward compatibility with existing data.
 // ============================================
 export const activityLogs = pgTable('activity_logs', {
  id: uuid('id').primaryKey().defaultRandom(),

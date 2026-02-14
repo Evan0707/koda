@@ -9,8 +9,11 @@ export async function updateSession(request: NextRequest) {
  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
- // Skip Supabase auth if credentials are not configured
+ // SECURITY: Block all protected routes when Supabase is not configured
  if (!supabaseUrl || !supabaseAnonKey) {
+  if (process.env.NODE_ENV === 'production') {
+   return new NextResponse('Server misconfigured', { status: 500 })
+  }
   return supabaseResponse
  }
 

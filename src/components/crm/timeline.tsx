@@ -75,10 +75,10 @@ export function Timeline({
  const getIcon = (type: string) => {
   switch (type) {
    case 'call': return <Phone className="w-4 h-4 text-blue-500" />
-   case 'email': return <Mail className="w-4 h-4 text-gray-500" />
+   case 'email': return <Mail className="w-4 h-4 text-muted-foreground" />
    case 'meeting': return <Calendar className="w-4 h-4 text-green-500" />
    case 'task': return <CheckSquare className="w-4 h-4 text-orange-500" />
-   default: return <FileText className="w-4 h-4 text-gray-400" />
+   default: return <FileText className="w-4 h-4 text-muted-foreground" />
   }
  }
 
@@ -94,7 +94,7 @@ export function Timeline({
 
  return (
   <div className="space-y-6">
-   <div className="bg-gray-50 rounded-lg p-4 border text-sm">
+   <div className="bg-muted rounded-lg p-4 border text-sm">
     <form onSubmit={handleSubmit} className="space-y-3">
      <div className="flex gap-2">
       <Select value={type} onValueChange={setType}>
@@ -144,7 +144,7 @@ export function Timeline({
     {activities.map((activity) => (
      <div key={activity.id} className="flex gap-3 relative pb-6 last:pb-0">
       {/* Connector line */}
-      <div className="absolute top-8 left-4 bottom-0 w-px bg-gray-200 -ml-px last:hidden" />
+      <div className="absolute top-8 left-4 bottom-0 w-px bg-border -ml-px last:hidden" />
 
       <div className="flex-shrink-0 w-8 h-8 rounded-full bg-white border flex items-center justify-center shadow-sm z-10">
        {getIcon(activity.type)}
@@ -152,18 +152,18 @@ export function Timeline({
 
       <div className="flex-1 min-w-0">
        <div className="flex items-center gap-2 mb-0.5">
-        <span className="font-medium text-sm text-gray-900">
+        <span className="font-medium text-sm text-foreground">
          {getLabel(activity.type)}
         </span>
-        <span className="text-xs text-gray-500">
+        <span className="text-xs text-muted-foreground">
          • {formatDistanceToNow(new Date(activity.performedAt), { addSuffix: true, locale: fr })}
         </span>
        </div>
-       <div className="text-sm text-gray-600 bg-white p-3 rounded-lg border shadow-sm whitespace-pre-wrap">
+       <div className="text-sm text-muted-foreground bg-card p-3 rounded-lg border shadow-sm whitespace-pre-wrap">
         {activity.content}
        </div>
        {activity.creator && (
-        <div className="mt-1 flex items-center gap-1.5 text-xs text-gray-400">
+        <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
          <User className="w-3 h-3" />
          {activity.creator.first_name} {activity.creator.last_name}
         </div>
@@ -173,7 +173,7 @@ export function Timeline({
     ))}
 
     {activities.length === 0 && (
-     <div className="text-center py-8 text-gray-500 text-sm">
+     <div className="text-center py-8 text-muted-foreground text-sm">
       Aucune activité pour le moment
      </div>
     )}

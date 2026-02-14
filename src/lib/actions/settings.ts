@@ -45,9 +45,12 @@ export async function getUserProfile() {
       quotePrefix: 'DEV-',
       invoicePrefix: 'FAC-',
       paymentTerms: 30,
-      // Stripe
+      // Stripe (mask secret key — never expose full value to client)
       stripePublishableKey: dbUser?.organization?.stripePublishableKey || null,
-      stripeSecretKey: dbUser?.organization?.stripeSecretKey || null,
+      stripeSecretKey: dbUser?.organization?.stripeSecretKey
+        ? `${dbUser.organization.stripeSecretKey.slice(0, 7)}...${dbUser.organization.stripeSecretKey.slice(-4)}`
+        : null,
+      role: dbUser?.role || 'member',
     }
   }
 }
@@ -91,14 +94,15 @@ export async function updateUserProfile(formData: FormData) {
   return { success: true }
 }
 
+import { requirePermission } from '@/lib/auth'
+import { isRateLimited, getRateLimitKey, rateLimiters } from '@/lib/rate-limit'
+
 // Update company info (organization)
 export async function updateCompanyInfo(formData: FormData) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const auth = await requirePermission('manage_company')
+  if ('error' in auth) return { error: auth.error }
 
-  if (!user) {
-    return { error: 'Non autorisé' }
-  }
+  const { user } = auth
 
   // Get user's organization
   const dbUser = await db.query.users.findFirst({
@@ -145,12 +149,10 @@ export async function updateCompanyInfo(formData: FormData) {
 
 // Update billing preferences (stored in organization preferences)
 export async function updateBillingPreferences(formData: FormData) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const auth = await requirePermission('manage_billing')
+  if ('error' in auth) return { error: auth.error }
 
-  if (!user) {
-    return { error: 'Non autorisé' }
-  }
+  const { user } = auth
 
   // Get user's organization
   const dbUser = await db.query.users.findFirst({
@@ -184,45 +186,12 @@ export async function updateBillingPreferences(formData: FormData) {
   return { success: true }
 }
 
-// Change password
-export async function changePassword(currentPassword: string, newPassword: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { error: 'Non autorisé' }
-  }
-
-  // Verify current password by re-authenticating
-  const { error: signInError } = await supabase.auth.signInWithPassword({
-    email: user.email!,
-    password: currentPassword,
-  })
-
-  if (signInError) {
-    return { error: 'Mot de passe actuel incorrect' }
-  }
-
-  // Update password
-  const { error } = await supabase.auth.updateUser({
-    password: newPassword,
-  })
-
-  if (error) {
-    return { error: error.message }
-  }
-
-  return { success: true }
-}
-
 // Update Stripe settings
 export async function updateStripeSettings(formData: FormData) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const auth = await requirePermission('manage_stripe')
+  if ('error' in auth) return { error: auth.error }
 
-  if (!user) {
-    return { error: 'Non autorisé' }
-  }
+  const { user } = auth
 
   // Get user's organization
   const dbUser = await db.query.users.findFirst({
@@ -244,10 +213,14 @@ export async function updateStripeSettings(formData: FormData) {
     return { error: 'La clé secrète doit commencer par sk_' }
   }
 
+  // Encrypt secret key before storing
+  const { safeEncrypt } = await import('@/lib/encryption')
+  const encryptedSecretKey = stripeSecretKey ? safeEncrypt(stripeSecretKey) : null
+
   await db.update(schema.organizations)
     .set({
       stripePublishableKey,
-      stripeSecretKey,
+      stripeSecretKey: encryptedSecretKey,
       updatedAt: new Date(),
     })
     .where(eq(schema.organizations.id, dbUser.organizationId))
@@ -256,64 +229,101 @@ export async function updateStripeSettings(formData: FormData) {
   return { success: true }
 }
 
+// Change password
+export async function changePassword(currentPassword: string, newPassword: string) {
+  // Rate limit password changes
+  const rateLimitKey = await getRateLimitKey('change-password')
+  if (await isRateLimited(rateLimitKey, rateLimiters.auth)) {
+    return { error: 'Trop de tentatives. Réessayez dans quelques minutes.' }
+  }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) return { error: 'Non autorisé' }
+
+  // Verify current password by trying to sign in (or re-authenticate)
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email: user.email!,
+    password: currentPassword,
+  })
+
+  // If signIn fails, it might be due to incorrect password OR rate limits.
+  // But generally, for password change, we want to verify it.
+  if (signInError) {
+    return { error: 'Mot de passe actuel incorrect' }
+  }
+
+  const { error } = await supabase.auth.updateUser({
+    password: newPassword
+  })
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  return { success: true }
+}
+
 // Upload avatar
 export async function uploadAvatar(formData: FormData) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  if (!user) {
-    return { error: 'Non autorisé' }
-  }
+  if (!user) return { error: 'Non autorisé' }
 
   const file = formData.get('avatar') as File
-  if (!file) {
-    return { error: 'Aucun fichier fourni' }
+  if (!file) return { error: 'Aucun fichier' }
+
+  // Validate file type
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+  if (!allowedTypes.includes(file.type)) {
+    return { error: 'Format non supporté. Utilisez JPEG, PNG, GIF ou WebP.' }
   }
 
-  // 1. Upload to Supabase Storage
-  const fileExt = file.name.split('.').pop()
-  const fileName = `${user.id}-${Date.now()}.${fileExt}`
+  // Validate file size (max 2MB)
+  const MAX_SIZE = 2 * 1024 * 1024
+  if (file.size > MAX_SIZE) {
+    return { error: 'Fichier trop volumineux. Maximum 2 Mo.' }
+  }
 
-  // Note: 'avatars' bucket must exist and be public
+  const fileExt = file.name.split('.').pop()
+  const fileName = `${user.id}-${Math.random()}.${fileExt}`
+  const filePath = `${fileName}`
+
   const { error: uploadError } = await supabase.storage
     .from('avatars')
-    .upload(fileName, file, {
-      upsert: true
-    })
+    .upload(filePath, file)
 
   if (uploadError) {
-    console.error('Upload error:', uploadError)
     return { error: 'Erreur lors de l\'upload' }
   }
 
-  // 2. Get Public URL
   const { data: { publicUrl } } = supabase.storage
     .from('avatars')
-    .getPublicUrl(fileName)
+    .getPublicUrl(filePath)
 
-  // 3. Update User Profile
+  // Update user profile
   await db.update(schema.users)
-    .set({ avatarUrl: publicUrl, updatedAt: new Date() })
+    .set({ avatarUrl: publicUrl })
     .where(eq(schema.users.id, user.id))
 
   revalidatePath('/dashboard/settings')
-  revalidatePath('/dashboard', 'layout') // Revalidate layout to update sidebar/header avatar
-  return { success: true, url: publicUrl }
+  return { success: true }
 }
 
 // Delete user account and all associated data
 export async function deleteAccount() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const auth = await requirePermission('delete_account')
+  if ('error' in auth) return { error: auth.error }
 
-  if (!user) {
-    return { error: 'Non autorisé' }
-  }
+  const { user } = auth
 
   try {
-    // Get user's organization ID
+    // Get user's organization
     const dbUser = await db.query.users.findFirst({
       where: eq(schema.users.id, user.id),
+      with: { organization: true },
     })
 
     // Deleting the auth user requires Service Role
@@ -328,10 +338,7 @@ export async function deleteAccount() {
       }
     )
 
-
-
     // 0. CLEANUP STORAGE FILES
-    // Try to clean up known buckets for orphans
     const bucketsToClean = ['avatars', 'files', 'documents', 'contracts']
 
     await Promise.all(bucketsToClean.map(async (bucket) => {
@@ -347,16 +354,18 @@ export async function deleteAccount() {
             .remove(userFiles.map(f => f.name))
         }
 
-        // If we have orgId, search by orgId too (folders)
+        // Search by Organization ID if available
         if (dbUser?.organizationId) {
           const { data: orgFiles } = await serviceRoleSupabase.storage
             .from(bucket)
-            .list(dbUser.organizationId) // Assuming folder structure or proper search
+            .list(dbUser.organizationId)
 
           if (orgFiles && orgFiles.length > 0) {
-            // This might be risky if flat structure, but 'list(folder)' implies folder.
-            // Verification needed if buckets use folders.
-            // Safest is to rely on schema.files for org files, which we do below.
+            // For now we assume if we list the folder we might want to delete contents
+            // But 'remove' expects file paths. 
+            // Ideally we iterate and delete. 
+            // Given complexity, we will skip deep org folder cleanup here and rely on file table loop below
+            // which is safer as it targets specific paths.
           }
         }
       } catch (e) {
@@ -365,156 +374,159 @@ export async function deleteAccount() {
     }))
 
     if (dbUser?.organizationId) {
-      // Delete organization data respecting foreign keys
       const orgId = dbUser.organizationId
 
-      // Explicitly delete files recorded in DB (which might have different paths)
-      const orgFiles = await db.query.files.findMany({
-        where: eq(schema.files.organizationId, orgId)
-      })
+      // Wrap all DB deletions in a transaction for atomicity
+      await db.transaction(async (tx) => {
+        // 1. Files from DB
+        const orgFiles = await tx.query.files.findMany({
+          where: eq(schema.files.organizationId, orgId)
+        })
 
-      for (const file of orgFiles) {
-        if (file.url) {
-          try {
-            const match = file.url.match(/\/storage\/v1\/object\/public\/([^/]+)\/(.+)/)
-            if (match) {
-              const bucket = match[1]
-              const path = decodeURIComponent(match[2])
-              await serviceRoleSupabase.storage.from(bucket).remove([path])
+        for (const file of orgFiles) {
+          if (file.url) {
+            try {
+              const match = file.url.match(/\/storage\/v1\/object\/public\/([^/]+)\/(.+)/)
+              if (match) {
+                const bucket = match[1]
+                const path = decodeURIComponent(match[2])
+                await serviceRoleSupabase.storage.from(bucket).remove([path])
+              }
+            } catch (e) {
+              console.error('Error deleting file from storage:', e)
             }
-          } catch (e) {
-            console.error('Error deleting file from storage:', e)
           }
         }
-      }
 
-      // 1. Logs & History
-      // Delete audit logs by OrgID AND UserID to be safe
-      await db.delete(schema.auditLogs).where(
-        or(
-          eq(schema.auditLogs.organizationId, orgId),
-          eq(schema.auditLogs.userId, user.id)
+        // 2. Database Cleanup (order matters — children first)
+
+        // Logs
+        await tx.delete(schema.auditLogs).where(
+          or(
+            eq(schema.auditLogs.organizationId, orgId),
+            eq(schema.auditLogs.userId, user.id)
+          )
         )
-      )
-      await db.delete(schema.activityLogs).where(eq(schema.activityLogs.organizationId, orgId))
-      await db.delete(schema.automationLogs).where(eq(schema.automationLogs.organizationId, orgId))
+        await tx.delete(schema.activityLogs).where(eq(schema.activityLogs.organizationId, orgId))
+        await tx.delete(schema.automationLogs).where(eq(schema.automationLogs.organizationId, orgId))
 
-      // 2. Collaboration
-      await db.delete(schema.notifications).where(
-        or(
-          eq(schema.notifications.organizationId, orgId),
-          eq(schema.notifications.userId, user.id)
+        // Collaboration
+        await tx.delete(schema.notifications).where(
+          or(
+            eq(schema.notifications.organizationId, orgId),
+            eq(schema.notifications.userId, user.id)
+          )
         )
-      )
-      await db.delete(schema.messages).where(
-        eq(schema.messages.conversationId,
-          db.select({ id: schema.conversations.id })
-            .from(schema.conversations)
-            .where(eq(schema.conversations.organizationId, orgId))
+        await tx.delete(schema.messages).where(
+          eq(schema.messages.conversationId,
+            tx.select({ id: schema.conversations.id })
+              .from(schema.conversations)
+              .where(eq(schema.conversations.organizationId, orgId))
+          )
         )
-      )
-      await db.delete(schema.conversations).where(eq(schema.conversations.organizationId, orgId))
+        await tx.delete(schema.conversations).where(eq(schema.conversations.organizationId, orgId))
 
-      // 3. Automation
-      await db.delete(schema.automationRules).where(eq(schema.automationRules.organizationId, orgId))
-      await db.delete(schema.aiSuggestions).where(eq(schema.aiSuggestions.organizationId, orgId))
-      await db.delete(schema.webhooks).where(eq(schema.webhooks.organizationId, orgId))
+        // Automation
+        await tx.delete(schema.automationRules).where(eq(schema.automationRules.organizationId, orgId))
+        await tx.delete(schema.aiSuggestions).where(eq(schema.aiSuggestions.organizationId, orgId))
+        await tx.delete(schema.webhooks).where(eq(schema.webhooks.organizationId, orgId))
 
-      // 4. Time & Projects
-      await db.delete(schema.timeEntries).where(
-        or(
-          eq(schema.timeEntries.organizationId, orgId),
-          eq(schema.timeEntries.userId, user.id)
+        // Time & Projects
+        await tx.delete(schema.timeEntries).where(
+          or(
+            eq(schema.timeEntries.organizationId, orgId),
+            eq(schema.timeEntries.userId, user.id)
+          )
         )
-      )
-      await db.delete(schema.tasks).where(eq(schema.tasks.organizationId, orgId))
-      // Delete client access tokens linked to projects
-      await db.delete(schema.clientAccessTokens).where(eq(schema.clientAccessTokens.organizationId, orgId))
-      await db.delete(schema.projects).where(eq(schema.projects.organizationId, orgId))
+        await tx.delete(schema.tasks).where(eq(schema.tasks.organizationId, orgId))
+        await tx.delete(schema.cycles).where(eq(schema.cycles.organizationId, orgId))
+        await tx.delete(schema.clientAccessTokens).where(eq(schema.clientAccessTokens.organizationId, orgId))
+        await tx.delete(schema.projects).where(eq(schema.projects.organizationId, orgId))
 
-      // 5. Finance (Invoices -> Items)
-      const invoices = await db.query.invoices.findMany({
-        where: eq(schema.invoices.organizationId, orgId),
-        columns: { id: true }
+        // Finance
+        const invoiceList = await tx.query.invoices.findMany({
+          where: eq(schema.invoices.organizationId, orgId),
+          columns: { id: true }
+        })
+        for (const invoice of invoiceList) {
+          await tx.delete(schema.invoiceItems).where(eq(schema.invoiceItems.invoiceId, invoice.id))
+          await tx.delete(schema.payments).where(eq(schema.payments.invoiceId, invoice.id))
+        }
+        await tx.delete(schema.invoices).where(eq(schema.invoices.organizationId, orgId))
+        await tx.delete(schema.payments).where(eq(schema.payments.organizationId, orgId))
+
+        // Sales
+        const quoteList = await tx.query.quotes.findMany({
+          where: eq(schema.quotes.organizationId, orgId),
+          columns: { id: true }
+        })
+        for (const quote of quoteList) {
+          await tx.delete(schema.quoteItems).where(eq(schema.quoteItems.quoteId, quote.id))
+        }
+        await tx.delete(schema.quotes).where(eq(schema.quotes.organizationId, orgId))
+
+        // Pipeline
+        await tx.delete(schema.activities).where(
+          or(
+            eq(schema.activities.organizationId, orgId),
+            eq(schema.activities.createdBy, user.id)
+          )
+        )
+        await tx.delete(schema.opportunities).where(eq(schema.opportunities.organizationId, orgId))
+        await tx.delete(schema.pipelineStages).where(eq(schema.pipelineStages.organizationId, orgId))
+
+        // Legal
+        await tx.delete(schema.contracts).where(eq(schema.contracts.organizationId, orgId))
+        await tx.delete(schema.contractTemplates).where(eq(schema.contractTemplates.organizationId, orgId))
+        await tx.delete(schema.documentSequences).where(eq(schema.documentSequences.organizationId, orgId))
+
+        // Finance Categories & Accounts
+        await tx.delete(schema.expenses).where(eq(schema.expenses.organizationId, orgId))
+        await tx.delete(schema.expenseCategories).where(eq(schema.expenseCategories.organizationId, orgId))
+        await tx.delete(schema.bankAccounts).where(eq(schema.bankAccounts.organizationId, orgId))
+
+        // Files
+        await tx.delete(schema.files).where(eq(schema.files.organizationId, orgId))
+
+        // Contacts & CRM
+        await tx.delete(schema.contacts).where(eq(schema.contacts.organizationId, orgId))
+        await tx.delete(schema.companies).where(eq(schema.companies.organizationId, orgId))
+
+        // Products & Settings & Tags
+        await tx.delete(schema.products).where(eq(schema.products.organizationId, orgId))
+        await tx.delete(schema.emailConfigs).where(eq(schema.emailConfigs.organizationId, orgId))
+        await tx.delete(schema.apiKeys).where(eq(schema.apiKeys.organizationId, orgId))
+        await tx.delete(schema.taggables).where(
+          inArray(
+            schema.taggables.tagId,
+            tx.select({ id: schema.tags.id }).from(schema.tags).where(eq(schema.tags.organizationId, orgId))
+          )
+        )
+        await tx.delete(schema.tags).where(eq(schema.tags.organizationId, orgId))
+
+        // Subscriptions
+        await tx.delete(schema.subscriptions).where(eq(schema.subscriptions.organizationId, orgId))
+
+        // User & Org
+        await tx.delete(schema.users).where(eq(schema.users.id, user.id))
+        await tx.delete(schema.organizations).where(eq(schema.organizations.id, orgId))
       })
-      for (const invoice of invoices) {
-        await db.delete(schema.invoiceItems).where(eq(schema.invoiceItems.invoiceId, invoice.id))
-        await db.delete(schema.payments).where(eq(schema.payments.invoiceId, invoice.id))
-      }
-      await db.delete(schema.invoices).where(eq(schema.invoices.organizationId, orgId))
-      // Also delete orphan payments
-      await db.delete(schema.payments).where(eq(schema.payments.organizationId, orgId))
-
-      // 6. Sales (Quotes -> Items)
-      const quotes = await db.query.quotes.findMany({
-        where: eq(schema.quotes.organizationId, orgId),
-        columns: { id: true }
-      })
-      for (const quote of quotes) {
-        await db.delete(schema.quoteItems).where(eq(schema.quoteItems.quoteId, quote.id))
-      }
-      await db.delete(schema.quotes).where(eq(schema.quotes.organizationId, orgId))
-
-      // 7. Pipeline & Opportunities
-      // Delete activities first
-      await db.delete(schema.activities).where(
-        or(
-          eq(schema.activities.organizationId, orgId),
-          eq(schema.activities.createdBy, user.id)
-        )
-      )
-      await db.delete(schema.opportunities).where(eq(schema.opportunities.organizationId, orgId))
-      await db.delete(schema.pipelineStages).where(eq(schema.pipelineStages.organizationId, orgId))
-
-      // 8. Legal
-      await db.delete(schema.contracts).where(eq(schema.contracts.organizationId, orgId))
-      await db.delete(schema.contractTemplates).where(eq(schema.contractTemplates.organizationId, orgId))
-      await db.delete(schema.documentSequences).where(eq(schema.documentSequences.organizationId, orgId))
-
-      // Finance Categories & Accounts
-      await db.delete(schema.expenses).where(eq(schema.expenses.organizationId, orgId))
-      await db.delete(schema.expenseCategories).where(eq(schema.expenseCategories.organizationId, orgId))
-      await db.delete(schema.bankAccounts).where(eq(schema.bankAccounts.organizationId, orgId))
-
-      // 9. Files
-      await db.delete(schema.files).where(eq(schema.files.organizationId, orgId))
-
-      // 10. Contacts & CRM
-      await db.delete(schema.contacts).where(eq(schema.contacts.organizationId, orgId))
-      await db.delete(schema.companies).where(eq(schema.companies.organizationId, orgId))
-
-      // 11. Products & Settings & Tags
-      await db.delete(schema.products).where(eq(schema.products.organizationId, orgId))
-      await db.delete(schema.emailConfigs).where(eq(schema.emailConfigs.organizationId, orgId))
-      await db.delete(schema.apiKeys).where(eq(schema.apiKeys.organizationId, orgId))
-      await db.delete(schema.taggables).where(
-        // Delete taggables where tag is in org
-        inArray(
-          schema.taggables.tagId,
-          db.select({ id: schema.tags.id }).from(schema.tags).where(eq(schema.tags.organizationId, orgId))
-        )
-      )
-      await db.delete(schema.tags).where(eq(schema.tags.organizationId, orgId))
-
-      // 12. User & Org
-      await db.delete(schema.users).where(eq(schema.users.id, user.id))
-      await db.delete(schema.organizations).where(eq(schema.organizations.id, orgId))
     } else {
-      // No organization, just user and their logs
-      await db.delete(schema.auditLogs).where(eq(schema.auditLogs.userId, user.id))
-      await db.delete(schema.notifications).where(eq(schema.notifications.userId, user.id))
-      // Add other user-centric tables if any
-      await db.delete(schema.users).where(eq(schema.users.id, user.id))
+      await db.transaction(async (tx) => {
+        await tx.delete(schema.auditLogs).where(eq(schema.auditLogs.userId, user.id))
+        await tx.delete(schema.notifications).where(eq(schema.notifications.userId, user.id))
+        await tx.delete(schema.users).where(eq(schema.users.id, user.id))
+      })
     }
 
     const { error: deleteError } = await serviceRoleSupabase.auth.admin.deleteUser(user.id)
 
     if (deleteError) {
       console.error('Auth delete error:', deleteError)
-      // Throwing error here to alert user, but only after best-effort cleanup
       throw deleteError
     }
 
+    const supabase = await createClient()
     await supabase.auth.signOut()
 
     return { success: true }

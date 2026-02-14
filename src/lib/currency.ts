@@ -16,7 +16,7 @@ export function getCurrencyInfo(code: string) {
 /**
  * Format a price in cents to a localized currency string
  */
-export function formatPrice(cents: number | null, currencyCode: string = 'EUR'): string {
+export function formatPrice(cents: number | null, currencyCode: string = 'EUR', options?: { compact?: boolean }): string {
  if (cents === null || cents === undefined) return '0,00 €'
 
  const currency = getCurrencyInfo(currencyCode)
@@ -24,7 +24,7 @@ export function formatPrice(cents: number | null, currencyCode: string = 'EUR'):
  return new Intl.NumberFormat(currency.locale, {
   style: 'currency',
   currency: currency.code,
-  minimumFractionDigits: 2,
+  minimumFractionDigits: options?.compact ? 0 : 2,
   maximumFractionDigits: 2,
  }).format(cents / 100)
 }

@@ -151,7 +151,7 @@ export function AIEmailDialog({ type, id, trigger }: AIEmailDialogProps) {
         size="sm"
         onClick={handleGenerateAI}
         disabled={isGenerating}
-        className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
+        className="text-primary hover:text-primary/80 hover:bg-primary/10"
        >
         {isGenerating ? (
          <Loader2 className="w-4 h-4 mr-1 animate-spin" />
@@ -171,17 +171,17 @@ export function AIEmailDialog({ type, id, trigger }: AIEmailDialogProps) {
 
      {/* Gmail status indicator */}
      {gmailConnected ? (
-      <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg text-sm">
-       <Mail className="w-4 h-4 text-green-600" />
-       <span className="text-green-700">
+      <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg text-sm">
+       <Mail className="w-4 h-4 text-green-600 dark:text-green-400" />
+       <span className="text-green-700 dark:text-green-300">
         Gmail connecté : <strong>{gmailEmail}</strong>
        </span>
       </div>
      ) : (
-      <div className="flex items-center justify-between gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm">
+      <div className="flex items-center justify-between gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg text-sm">
        <div className="flex items-center gap-2">
-        <Settings className="w-4 h-4 text-amber-600" />
-        <span className="text-amber-700">Gmail non connecté</span>
+        <Settings className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+        <span className="text-amber-700 dark:text-amber-300">Gmail non connecté</span>
        </div>
        <Button asChild variant="outline" size="sm">
         <Link href="/dashboard/settings?tab=integrations">Connecter</Link>
@@ -197,7 +197,7 @@ export function AIEmailDialog({ type, id, trigger }: AIEmailDialogProps) {
       </Button>
       {gmailConnected ? (
        <Button
-        className="bg-indigo-600 hover:bg-indigo-700"
+        
         onClick={handleSendViaGmail}
         disabled={isSending || !content.trim()}
        >

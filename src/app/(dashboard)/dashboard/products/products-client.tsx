@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from 'react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import {
  Table,
  TableBody,
@@ -19,12 +18,14 @@ import {
 } from '@/components/ui/dropdown-menu'
 import {
  Plus,
- Search,
  MoreVertical,
  Pencil,
  Trash2,
  Package,
 } from 'lucide-react'
+import { SearchInput } from '@/components/search-input'
+import { EmptyState } from '@/components/empty-state'
+import { formatPrice } from '@/lib/currency'
 import { ProductDialog, Product } from './product-dialog'
 import { deleteProduct, getProducts } from '@/lib/actions/products'
 import { toast } from 'sonner'
@@ -84,13 +85,6 @@ export default function ProductsClient({ initialProducts }: ProductsClientProps)
   setIsDialogOpen(true)
  }
 
- const formatPrice = (cents: number) => {
-  return new Intl.NumberFormat('fr-FR', {
-   style: 'currency',
-   currency: 'EUR',
-  }).format(cents / 100)
- }
-
  const getUnitLabel = (unit: string | null) => {
   switch (unit) {
    case 'day': return 'Jour'
@@ -116,25 +110,21 @@ export default function ProductsClient({ initialProducts }: ProductsClientProps)
    </div>
 
    <div className="flex items-center gap-4">
-    <div className="relative flex-1 max-w-sm">
-     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-     <Input
-      placeholder="Rechercher un produit..."
-      value={search}
-      onChange={(e) => handleSearch(e.target.value)}
-      className="pl-10"
-     />
-    </div>
+    <SearchInput
+     value={search}
+     onChange={handleSearch}
+     placeholder="Rechercher un produit..."
+    />
    </div>
 
    <div className="bg-card rounded-lg border overflow-hidden">
     {products.length === 0 ? (
-     <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
-      <Package className="w-12 h-12 text-muted-foreground/30 mb-4" />
-      <h3 className="text-lg font-medium text-foreground mb-1">Aucun produit</h3>
-      <p className="mb-4">Commencez par ajouter des produits à votre catalogue.</p>
-      <Button onClick={openCreate} variant="outline">Créer un produit</Button>
-     </div>
+     <EmptyState
+      icon={Package}
+      title="Aucun produit"
+      description="Commencez par ajouter des produits à votre catalogue."
+      action={{ label: 'Créer un produit', onClick: openCreate }}
+     />
     ) : (
      <Table>
       <TableHeader className="bg-muted/50">

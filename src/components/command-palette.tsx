@@ -143,7 +143,7 @@ export function CommandPalette() {
         {/* Keyboard shortcut badge */}
         <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-xs text-muted-foreground">
           <kbd className="px-1.5 py-0.5 bg-muted border border-border rounded text-[10px] font-medium">
-            ⌘K
+            Ctrl+K
           </kbd>
         </div>
       </div>

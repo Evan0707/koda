@@ -37,8 +37,21 @@ export default function UpdatePasswordPage() {
    return
   }
 
-  if (password.length < 6) {
-   toast.error('Le mot de passe doit contenir au moins 6 caractères')
+  // Validate password strength
+  if (password.length < 8) {
+   toast.error('Le mot de passe doit contenir au moins 8 caractères')
+   return
+  }
+  if (!/[A-Z]/.test(password)) {
+   toast.error('Le mot de passe doit contenir au moins une majuscule')
+   return
+  }
+  if (!/[a-z]/.test(password)) {
+   toast.error('Le mot de passe doit contenir au moins une minuscule')
+   return
+  }
+  if (!/[0-9]/.test(password)) {
+   toast.error('Le mot de passe doit contenir au moins un chiffre')
    return
   }
 

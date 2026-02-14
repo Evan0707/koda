@@ -153,7 +153,7 @@ export function PipelineSettings({ stages, onUpdate }: PipelineSettingsProps) {
     result = await createStage(formData)
    }
 
-   if (result.error) {
+   if ('error' in result) {
     toast.error(result.error)
    } else {
     toast.success(editingStage ? 'Étape modifiée' : 'Étape créée')
@@ -172,7 +172,7 @@ export function PipelineSettings({ stages, onUpdate }: PipelineSettingsProps) {
    variant: 'destructive',
    onConfirm: async () => {
     const result = await deleteStage(id)
-    if (result.error) {
+    if ('error' in result) {
      toast.error(result.error)
     } else {
      toast.success('Étape supprimée')

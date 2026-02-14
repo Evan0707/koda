@@ -21,7 +21,8 @@ import { updateQuoteStatus } from '@/lib/actions/quotes'
 import { convertQuoteToInvoice } from '@/lib/actions/invoices'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
-import { useTransition } from 'react'
+import { useTransition, useState } from 'react'
+import { LimitReachedModal } from '@/components/limit-reached-modal'
 
 interface QuoteDetailProps {
     quote: any
@@ -37,17 +38,26 @@ export default function QuoteDetail({ quote }: QuoteDetailProps) {
             if (result.error) {
                 toast.error(result.error)
             } else {
-                toast.success(`Statut mis à jour : ${status}`)
+                const statusLabels: Record<string, string> = { draft: 'Brouillon', sent: 'Envoyé', accepted: 'Accepté', rejected: 'Refusé', expired: 'Expiré' }
+                toast.success(`Statut mis à jour : ${statusLabels[status] || status}`)
                 router.refresh()
             }
         })
     }
 
+    const [showLimitModal, setShowLimitModal] = useState(false)
+    const [currentPlan, setCurrentPlan] = useState('free')
+
     const handleConversion = async () => {
         startTransition(async () => {
             const result = await convertQuoteToInvoice(quote.id)
             if (result.error) {
-                toast.error(result.error)
+                if ('upgradeRequired' in result && result.upgradeRequired) {
+                    setCurrentPlan(result.currentPlan || 'free')
+                    setShowLimitModal(true)
+                } else {
+                    toast.error(result.error)
+                }
             } else {
                 toast.success('Facture générée avec succès')
                 router.push(`/dashboard/invoices/${result.id}`)
@@ -98,7 +108,7 @@ export default function QuoteDetail({ quote }: QuoteDetailProps) {
                         <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium uppercase tracking-wide
                 ${quote.status === 'draft' ? 'bg-muted text-muted-foreground' : ''}
                 ${quote.status === 'sent' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300' : ''}
-                ${quote.status === 'accepted' ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' : ''}
+                ${quote.status === 'accepted' || quote.status === 'signed' ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' : ''}
                 ${quote.status === 'rejected' ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300' : ''}
              `}>
                             {quote.status}
@@ -156,7 +166,7 @@ export default function QuoteDetail({ quote }: QuoteDetailProps) {
                         </>
                     )}
 
-                    {quote.status === 'accepted' && (
+                    {(quote.status === 'accepted' || quote.status === 'signed') && (
                         <Button
                             variant="default"
                             className="bg-primary hover:bg-primary/90"
@@ -315,6 +325,12 @@ export default function QuoteDetail({ quote }: QuoteDetailProps) {
             }
         }
       `}</style>
+            <LimitReachedModal
+                isOpen={showLimitModal}
+                onClose={() => setShowLimitModal(false)}
+                currentPlan={currentPlan}
+                limitType="invoices"
+            />
         </div>
     )
 }

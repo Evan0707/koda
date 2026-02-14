@@ -55,11 +55,11 @@ export function TagInput({
   setIsPending(true)
   const result = await createTag(inputValue.trim())
 
-  if (result.error || !result.tag) {
-   toast.error(result.error || 'Erreur lors de la création')
+  if ('error' in result) {
+   toast.error(result.error)
   } else {
-   setAvailableTags(prev => [...prev, result.tag!])
-   handleSelectTag(result.tag!)
+   setAvailableTags(prev => [...prev, result.tag])
+   handleSelectTag(result.tag)
    setInputValue('')
    toast.success('Tag créé')
   }
@@ -126,7 +126,7 @@ export function TagInput({
       aria-expanded={open}
       className="w-full justify-between text-left font-normal"
      >
-      <span className="text-gray-500">Ajouter un tag...</span>
+      <span className="text-muted-foreground">Ajouter un tag...</span>
       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
      </Button>
     </PopoverTrigger>
@@ -138,10 +138,10 @@ export function TagInput({
        onValueChange={setInputValue}
       />
       <CommandList>
-       <CommandEmpty className="py-2 px-2 text-sm text-gray-500">
+       <CommandEmpty className="py-2 px-2 text-sm text-muted-foreground">
         {!isPending && inputValue && !exactMatch ? (
          <button
-          className="w-full text-left p-2 hover:bg-gray-100 rounded-md flex items-center gap-2 text-indigo-600"
+          className="w-full text-left p-2 hover:bg-muted rounded-md flex items-center gap-2 text-primary"
           onClick={handleCreateTag}
          >
           <Plus className="w-4 h-4" />

@@ -64,6 +64,7 @@ import { getContacts } from '@/lib/actions/contacts'
 import { PipelineSettings } from './pipeline-settings'
 import { useConfirm } from '@/components/confirm-dialog'
 import { triggerFireworks } from '@/lib/confetti'
+import { formatPrice } from '@/lib/currency'
 
 type Stage = {
   id: string
@@ -119,14 +120,6 @@ function OpportunityCard({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-  }
-
-  const formatValue = (cents: number) => {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 0,
-    }).format(cents / 100)
   }
 
   // Check if overdue
@@ -196,10 +189,10 @@ function OpportunityCard({
           <div className="flex items-center gap-1">
             <Euro className="w-3 h-3" />
             <span className="font-semibold text-foreground">
-              {formatValue(opportunity.value)}
+              {formatPrice(opportunity.value, 'EUR', { compact: true })}
             </span>
             <span className="text-muted-foreground/70">
-              → {formatValue(weightedValue)}
+              → {formatPrice(weightedValue, 'EUR', { compact: true })}
             </span>
           </div>
           <span className="text-xs bg-muted px-1.5 py-0.5 rounded text-foreground">
@@ -246,14 +239,6 @@ function StageColumn({
 
   const totalValue = opportunities.reduce((sum, opp) => sum + opp.value, 0)
   const weightedTotal = opportunities.reduce((sum, opp) => sum + Math.round(opp.value * opp.probability / 100), 0)
-  const formatValue = (cents: number) => {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 0,
-      notation: 'compact',
-    }).format(cents / 100)
-  }
 
   return (
     <div
@@ -278,7 +263,7 @@ function StageColumn({
           </div>
         </div>
         <p className="text-xs text-muted-foreground font-medium">
-          {formatValue(totalValue)} <span className="text-muted-foreground/50">→ {formatValue(weightedTotal)}</span>
+          {formatPrice(totalValue, 'EUR', { compact: true })} <span className="text-muted-foreground/50">→ {formatPrice(weightedTotal, 'EUR', { compact: true })}</span>
         </p>
       </div>
 
@@ -449,7 +434,7 @@ export default function PipelineClient() {
         result = await createOpportunity(formData)
       }
 
-      if (result.error) {
+      if ('error' in result) {
         toast.error(result.error)
       } else {
         toast.success(editingOpportunity ? 'Opportunité modifiée' : 'Opportunité créée')
@@ -470,7 +455,7 @@ export default function PipelineClient() {
       variant: 'destructive',
       onConfirm: async () => {
         const result = await deleteOpportunity(id)
-        if (result.error) {
+        if ('error' in result) {
           toast.error(result.error)
         } else {
           toast.success('Opportunité supprimée')
@@ -539,14 +524,6 @@ export default function PipelineClient() {
     .filter(o => !stages.find(s => s.id === o.stage_id)?.isWon && !stages.find(s => s.id === o.stage_id)?.isLost)
     .reduce((sum, o) => sum + Math.round(o.value * o.probability / 100), 0)
 
-  const formatValue = (cents: number) => {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 0,
-    }).format(cents / 100)
-  }
-
   const activeOpportunity = activeId ? opportunities.find(o => o.id === activeId) : null
 
   return (
@@ -556,7 +533,7 @@ export default function PipelineClient() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Pipeline</h1>
           <p className="text-muted-foreground">
-            {formatValue(totalPipelineValue)} <span className="text-muted-foreground/70">→ {formatValue(weightedPipelineValue)} pondéré</span>
+            {formatPrice(totalPipelineValue, 'EUR', { compact: true })} <span className="text-muted-foreground/70">→ {formatPrice(weightedPipelineValue, 'EUR', { compact: true })} pondéré</span>
           </p>
         </div>
 
@@ -750,7 +727,7 @@ export default function PipelineClient() {
                   {activeOpportunity.name}
                 </h4>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {formatValue(activeOpportunity.value)}
+                  {formatPrice(activeOpportunity.value, 'EUR', { compact: true })}
                 </p>
               </div>
             ) : null}

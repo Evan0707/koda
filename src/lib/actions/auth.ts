@@ -6,22 +6,25 @@ import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { sendMailjetEmail } from '@/lib/mailjet'
 import { getPasswordResetTemplate, getConfirmationTemplate } from '@/lib/email-templates'
+import { signUpSchema, resetPasswordSchema, updatePasswordSchema, validateInput } from '@/lib/validations'
+import { isRateLimited, getRateLimitKey, rateLimiters } from '@/lib/rate-limit'
+import { getAppUrl } from '@/lib/utils'
 
 export async function signUpAction(formData: FormData) {
+ // Rate limiting
+ const rateLimitKey = await getRateLimitKey('signup')
+ if (await isRateLimited(rateLimitKey, rateLimiters.auth)) {
+  return { error: 'Trop de tentatives. Réessayez dans quelques minutes.' }
+ }
+
  const email = formData.get('email') as string
  const password = formData.get('password') as string
  const confirmPassword = formData.get('confirmPassword') as string
 
- if (!email || !password || !confirmPassword) {
-  return { error: 'Veuillez remplir tous les champs' }
- }
-
- if (password !== confirmPassword) {
-  return { error: 'Les mots de passe ne correspondent pas' }
- }
-
- if (password.length < 6) {
-  return { error: 'Le mot de passe doit contenir au moins 6 caractères' }
+ // Validate input with Zod
+ const validation = validateInput(signUpSchema, { email, password, confirmPassword })
+ if (!validation.success) {
+  return { error: validation.error }
  }
 
  // Use Service Role for admin actions
@@ -65,7 +68,7 @@ export async function signUpAction(formData: FormData) {
   email,
   password,
   options: {
-   redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`
+   redirectTo: `${getAppUrl()}/auth/callback`
   }
  })
 
@@ -93,11 +96,18 @@ export async function signUpAction(formData: FormData) {
 }
 
 export async function resetPasswordForEmail(formData: FormData) {
- const email = formData.get('email') as string
- const supabase = await createClient()
+ // Rate limiting
+ const rateLimitKey = await getRateLimitKey('reset-password')
+ if (await isRateLimited(rateLimitKey, rateLimiters.passwordReset)) {
+  return { error: 'Trop de tentatives. Réessayez dans quelques minutes.' }
+ }
 
- if (!email) {
-  return { error: 'Email requis' }
+ const email = formData.get('email') as string
+
+ // Validate input
+ const validation = validateInput(resetPasswordSchema, { email })
+ if (!validation.success) {
+  return { error: validation.error }
  }
 
  // Use Service Role to generate link
@@ -116,7 +126,7 @@ export async function resetPasswordForEmail(formData: FormData) {
   type: 'recovery',
   email,
   options: {
-   redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/update-password`,
+   redirectTo: `${getAppUrl()}/update-password`,
   }
  })
 
@@ -147,12 +157,10 @@ export async function updatePassword(formData: FormData) {
  const confirmPassword = formData.get('confirmPassword') as string
  const supabase = await createClient()
 
- if (!password || !confirmPassword) {
-  return { error: 'Veuillez remplir tous les champs' }
- }
-
- if (password !== confirmPassword) {
-  return { error: 'Les mots de passe ne correspondent pas' }
+ // Validate input with Zod
+ const validation = validateInput(updatePasswordSchema, { password, confirmPassword })
+ if (!validation.success) {
+  return { error: validation.error }
  }
 
  const { error } = await supabase.auth.updateUser({

@@ -3,7 +3,7 @@
 import { db } from '@/db'
 import { pipelineStages } from '@/db/schema/crm'
 
-import { getOrganizationId } from '@/lib/auth'
+import { getOrganizationId, requirePermission } from '@/lib/auth'
 import { revalidatePath } from 'next/cache'
 import { eq, and, asc } from 'drizzle-orm'
 
@@ -28,31 +28,31 @@ export async function getPipelineStages() {
 export async function createDefaultStages() {
   const organizationId = await getOrganizationId()
 
-  // Check if stages already exist
-  const existing = await db.select()
-    .from(pipelineStages)
-    .where(eq(pipelineStages.organizationId, organizationId))
-
-  if (existing.length > 0) {
-    return { success: true, stages: existing }
-  }
-
-  const defaultStages = [
-    { name: 'Lead', color: '#6B7280', position: 0, isWon: false, isLost: false },
-    { name: 'Qualification', color: '#3B82F6', position: 1, isWon: false, isLost: false },
-    { name: 'Proposition', color: '#8B5CF6', position: 2, isWon: false, isLost: false },
-    { name: 'Négociation', color: '#F59E0B', position: 3, isWon: false, isLost: false },
-    { name: 'Gagné', color: '#10B981', position: 4, isWon: true, isLost: false },
-    { name: 'Perdu', color: '#EF4444', position: 5, isWon: false, isLost: true },
-  ]
-
+  // Use a transaction with check to avoid race conditions
   try {
-    const stages = await db.insert(pipelineStages)
-      .values(defaultStages.map(stage => ({
-        organizationId,
-        ...stage,
-      })))
-      .returning()
+    const stages = await db.transaction(async (tx) => {
+      const existing = await tx.select()
+        .from(pipelineStages)
+        .where(eq(pipelineStages.organizationId, organizationId))
+
+      if (existing.length > 0) return existing
+
+      const defaultStages = [
+        { name: 'Lead', color: '#6B7280', position: 0, isWon: false, isLost: false },
+        { name: 'Qualification', color: '#3B82F6', position: 1, isWon: false, isLost: false },
+        { name: 'Proposition', color: '#8B5CF6', position: 2, isWon: false, isLost: false },
+        { name: 'Négociation', color: '#F59E0B', position: 3, isWon: false, isLost: false },
+        { name: 'Gagné', color: '#10B981', position: 4, isWon: true, isLost: false },
+        { name: 'Perdu', color: '#EF4444', position: 5, isWon: false, isLost: true },
+      ]
+
+      return await tx.insert(pipelineStages)
+        .values(defaultStages.map(stage => ({
+          organizationId,
+          ...stage,
+        })))
+        .returning()
+    })
 
     revalidatePath('/dashboard/pipeline')
     return { success: true, stages }
@@ -64,6 +64,9 @@ export async function createDefaultStages() {
 
 // Create stage
 export async function createStage(formData: FormData) {
+  const permResult = await requirePermission('manage_pipeline')
+  if ('error' in permResult) return permResult
+
   const organizationId = await getOrganizationId()
 
   const name = formData.get('name') as string
@@ -101,6 +104,9 @@ export async function createStage(formData: FormData) {
 
 // Update stage
 export async function updateStage(id: string, formData: FormData) {
+  const permResult = await requirePermission('manage_pipeline')
+  if ('error' in permResult) return permResult
+
   const organizationId = await getOrganizationId()
 
   const name = formData.get('name') as string
@@ -129,6 +135,9 @@ export async function updateStage(id: string, formData: FormData) {
 
 // Delete stage
 export async function deleteStage(id: string) {
+  const permResult = await requirePermission('manage_pipeline')
+  if ('error' in permResult) return permResult
+
   const organizationId = await getOrganizationId()
 
   try {
@@ -151,17 +160,17 @@ export async function reorderStages(stageIds: string[]) {
   const organizationId = await getOrganizationId()
 
   try {
-    // Update positions based on new order
-    await Promise.all(
-      stageIds.map((id, index) =>
-        db.update(pipelineStages)
+    // Update positions atomically in a transaction
+    await db.transaction(async (tx) => {
+      for (let index = 0; index < stageIds.length; index++) {
+        await tx.update(pipelineStages)
           .set({ position: index })
           .where(and(
-            eq(pipelineStages.id, id),
+            eq(pipelineStages.id, stageIds[index]),
             eq(pipelineStages.organizationId, organizationId)
           ))
-      )
-    )
+      }
+    })
 
     revalidatePath('/dashboard/pipeline')
     return { success: true }

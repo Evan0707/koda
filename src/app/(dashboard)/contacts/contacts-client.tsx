@@ -116,18 +116,18 @@ export default function ContactsClient() {
   <div className="space-y-6">
    <div className="flex items-center justify-between">
     <div>
-     <h1 className="text-2xl font-bold text-gray-900">CRM</h1>
-     <p className="text-gray-500">Gérez vos contacts et entreprises</p>
+     <h1 className="text-2xl font-bold text-foreground">CRM</h1>
+     <p className="text-muted-foreground">Gérez vos contacts et entreprises</p>
     </div>
    </div>
 
    <Tabs value={activeTab} onValueChange={setActiveTab}>
-    <TabsList className="bg-gray-100">
-     <TabsTrigger value="contacts" className="data-[state=active]:bg-white">
+    <TabsList>
+     <TabsTrigger value="contacts">
       <Users className="w-4 h-4 mr-2" />
       Contacts
      </TabsTrigger>
-     <TabsTrigger value="companies" className="data-[state=active]:bg-white">
+     <TabsTrigger value="companies">
       <Building2 className="w-4 h-4 mr-2" />
       Entreprises
      </TabsTrigger>
@@ -136,7 +136,7 @@ export default function ContactsClient() {
     <TabsContent value="contacts" className="space-y-6">
      <div className="flex items-center gap-4">
       <div className="relative flex-1">
-       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
        <Input
         placeholder="Rechercher un contact..."
         value={search}
@@ -150,7 +150,7 @@ export default function ContactsClient() {
        if (!open) setEditingContact(null)
       }}>
        <DialogTrigger asChild>
-        <Button className="bg-indigo-600 hover:bg-indigo-700">
+        <Button>
          <Plus className="w-4 h-4 mr-2" />
          Nouveau contact
         </Button>
@@ -236,7 +236,7 @@ export default function ContactsClient() {
           <Button
            type="submit"
            disabled={isPending}
-           className="bg-indigo-600 hover:bg-indigo-700"
+           
           >
            {isPending ? (
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -250,21 +250,21 @@ export default function ContactsClient() {
 
      {isLoading ? (
       <div className="flex items-center justify-center py-12">
-       <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+       <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
      ) : contacts.length === 0 ? (
       <Card>
        <CardContent className="py-12 text-center">
-        <User className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">
+        <User className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-foreground mb-2">
          Aucun contact
         </h3>
-        <p className="text-gray-500 mb-4">
+        <p className="text-muted-foreground mb-4">
          Créez votre premier contact pour commencer
         </p>
         <Button
          onClick={() => setIsDialogOpen(true)}
-         className="bg-indigo-600 hover:bg-indigo-700"
+         
         >
          <Plus className="w-4 h-4 mr-2" />
          Créer un contact
@@ -272,20 +272,20 @@ export default function ContactsClient() {
        </CardContent>
       </Card>
      ) : (
-      <div className="bg-white rounded-lg border overflow-hidden">
+      <div className="bg-card rounded-lg border overflow-hidden">
        <table className="w-full">
-        <thead className="bg-gray-50 border-b">
+        <thead className="bg-muted border-b">
          <tr>
-          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+          <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">
            Contact
           </th>
-          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+          <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">
            Entreprise
           </th>
-          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+          <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">
            Email
           </th>
-          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+          <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">
            Téléphone
           </th>
           <th className="px-4 py-3 w-10"></th>
@@ -293,58 +293,58 @@ export default function ContactsClient() {
         </thead>
         <tbody className="divide-y">
          {contacts.map((contact) => (
-          <tr key={contact.id} className="hover:bg-gray-50">
+          <tr key={contact.id} className="hover:bg-muted">
            <td className="px-4 py-3">
             <div className="flex items-center gap-3">
-             <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">
-              <span className="text-sm font-medium text-indigo-600">
+             <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+              <span className="text-sm font-medium text-primary">
                {(contact.firstName || '?')[0]}{contact.lastName?.[0] || ''}
               </span>
              </div>
              <div>
-              <p className="font-medium text-gray-900">
+              <p className="font-medium text-foreground">
                {contact.firstName || ''} {contact.lastName || ''}
               </p>
               {contact.jobTitle && (
-               <p className="text-xs text-gray-500">{contact.jobTitle}</p>
+               <p className="text-xs text-muted-foreground">{contact.jobTitle}</p>
               )}
              </div>
             </div>
            </td>
-           <td className="px-4 py-3 text-gray-600">
+           <td className="px-4 py-3 text-muted-foreground">
             {contact.company?.name || '—'}
            </td>
            <td className="px-4 py-3">
             {contact.email ? (
              <a
               href={`mailto:${contact.email}`}
-              className="flex items-center gap-1 text-gray-600 hover:text-indigo-600"
+              className="flex items-center gap-1 text-muted-foreground hover:text-primary"
              >
               <Mail className="w-3.5 h-3.5" />
               {contact.email}
              </a>
             ) : (
-             <span className="text-gray-400">—</span>
+             <span className="text-muted-foreground">—</span>
             )}
            </td>
            <td className="px-4 py-3">
             {contact.phone ? (
              <a
               href={`tel:${contact.phone}`}
-              className="flex items-center gap-1 text-gray-600 hover:text-indigo-600"
+              className="flex items-center gap-1 text-muted-foreground hover:text-primary"
              >
               <Phone className="w-3.5 h-3.5" />
               {contact.phone}
              </a>
             ) : (
-             <span className="text-gray-400">—</span>
+             <span className="text-muted-foreground">—</span>
             )}
            </td>
            <td className="px-4 py-3">
             <DropdownMenu>
              <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-               <MoreVertical className="w-4 h-4 text-gray-400" />
+               <MoreVertical className="w-4 h-4 text-muted-foreground" />
               </Button>
              </DropdownMenuTrigger>
              <DropdownMenuContent align="end">

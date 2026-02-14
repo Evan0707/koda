@@ -6,6 +6,26 @@ import { sendMailjetEmail, isMailjetConfigured } from '@/lib/mailjet'
 import { db, schema } from '@/db'
 import { eq, and, isNull } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
+import { getOrganizationId } from '@/lib/auth'
+import { isRateLimited, getRateLimitKey, rateLimiters } from '@/lib/rate-limit'
+import { getAppUrl } from '@/lib/utils'
+
+// Strip dangerous HTML tags and event handlers from user-provided content
+function sanitizeHtml(html: string): string {
+  return html
+    // Remove script/iframe/object/embed/form tags and their content
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
+    .replace(/<object[\s\S]*?<\/object>/gi, '')
+    .replace(/<embed[\s\S]*?>/gi, '')
+    .replace(/<form[\s\S]*?<\/form>/gi, '')
+    // Remove self-closing dangerous tags
+    .replace(/<(script|iframe|object|embed|form)[^>]*\/>/gi, '')
+    // Remove on* event handlers from all tags
+    .replace(/\s+on\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    // Remove javascript: protocol in href/src
+    .replace(/(href|src)\s*=\s*["']?\s*javascript:/gi, '$1="')
+}
 
 // Check Gmail connection status
 export async function getGmailStatus() {
@@ -41,20 +61,22 @@ async function sendEmail(
   subject: string,
   htmlBody: string
 ) {
+  // Sanitize HTML to prevent XSS
+  const safeBody = sanitizeHtml(htmlBody)
   // Try Mailjet first (simpler, no OAuth needed)
   if (isMailjetConfigured()) {
     return await sendMailjetEmail({
       to,
       toName,
       subject,
-      htmlBody,
+      htmlBody: safeBody,
     })
   }
 
   // Fallback to Gmail OAuth if user has it connected
   const gmailStatus = await isGmailConnected(userId)
   if (gmailStatus.connected) {
-    return await sendGmailEmail(userId, to, subject, htmlBody)
+    return await sendGmailEmail(userId, to, subject, safeBody)
   }
 
   throw new Error('Aucun service email configuré. Configurez Mailjet dans les variables d\'environnement ou connectez Gmail dans les paramètres.')
@@ -74,10 +96,19 @@ export async function sendInvoiceEmail(
   }
 
   try {
-    // Get invoice with contact
+    // Rate limit email sending
+    const rateLimitKey = await getRateLimitKey('send-invoice-email')
+    if (await isRateLimited(rateLimitKey, rateLimiters.standard)) {
+      return { error: 'Trop d\'envois. Réessayez dans quelques minutes.' }
+    }
+
+    const organizationId = await getOrganizationId()
+
+    // Get invoice with contact — scoped to organization
     const invoice = await db.query.invoices.findFirst({
       where: and(
         eq(schema.invoices.id, invoiceId),
+        eq(schema.invoices.organizationId, organizationId),
         isNull(schema.invoices.deletedAt)
       ),
       with: {
@@ -94,7 +125,7 @@ export async function sendInvoiceEmail(
     }
 
     // Add payment link to body if not already there
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const baseUrl = getAppUrl()
     const paymentLink = `${baseUrl}/pay/${invoice.id}`
 
     let finalBody = htmlBody
@@ -151,10 +182,19 @@ export async function sendQuoteEmail(
   }
 
   try {
-    // Get quote with contact
+    // Rate limit email sending
+    const rateLimitKey = await getRateLimitKey('send-quote-email')
+    if (await isRateLimited(rateLimitKey, rateLimiters.standard)) {
+      return { error: 'Trop d\'envois. Réessayez dans quelques minutes.' }
+    }
+
+    const organizationId = await getOrganizationId()
+
+    // Get quote with contact — scoped to organization
     const quote = await db.query.quotes.findFirst({
       where: and(
         eq(schema.quotes.id, quoteId),
+        eq(schema.quotes.organizationId, organizationId),
         isNull(schema.quotes.deletedAt)
       ),
       with: {
@@ -171,7 +211,7 @@ export async function sendQuoteEmail(
     }
 
     // Add signature link
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const baseUrl = getAppUrl()
     const signatureLink = `${baseUrl}/quote/${quote.id}`
 
     let finalBody = htmlBody

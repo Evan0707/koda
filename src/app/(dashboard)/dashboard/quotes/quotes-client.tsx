@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import {
   Table,
   TableBody,
@@ -11,15 +10,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { PageHeader } from '@/components/page-header'
-import { Plus, Search, FileText, ArrowRight, Filter } from 'lucide-react'
+import { SearchInput } from '@/components/search-input'
+import { StatusBadge, type StatusConfig } from '@/components/status-badge'
+import { FilterSelect } from '@/components/filter-select'
+import { EmptyState } from '@/components/empty-state'
+import { formatPrice } from '@/lib/currency'
+import { Plus, FileText, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
@@ -53,35 +50,12 @@ export default function QuotesClient({ initialQuotes }: { initialQuotes: any[] }
     })
   }, [quotes, search, statusFilter])
 
-  const formatPrice = (cents: number) => {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'EUR',
-    }).format(cents / 100)
-  }
-
-  const getStatusBadge = (status: string) => {
-    const styles: Record<string, string> = {
-      draft: 'bg-muted text-muted-foreground',
-      sent: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300',
-      accepted: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300',
-      rejected: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300',
-      expired: 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300',
-    }
-
-    const labels: Record<string, string> = {
-      draft: 'Brouillon',
-      sent: 'Envoyé',
-      accepted: 'Accepté',
-      rejected: 'Refusé',
-      expired: 'Expiré',
-    }
-
-    return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[status] || styles.draft}`}>
-        {labels[status] || status}
-      </span>
-    )
+  const QUOTE_STATUSES: Record<string, StatusConfig> = {
+    draft: { label: 'Brouillon', variant: 'muted' },
+    sent: { label: 'Envoyé', variant: 'blue' },
+    accepted: { label: 'Accepté', variant: 'green' },
+    rejected: { label: 'Refusé', variant: 'red' },
+    expired: { label: 'Expiré', variant: 'orange' },
   }
 
   return (
@@ -101,53 +75,33 @@ export default function QuotesClient({ initialQuotes }: { initialQuotes: any[] }
       />
 
       <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Rechercher un devis..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px]">
-            <Filter className="w-4 h-4 mr-2" />
-            <SelectValue placeholder="Filtrer par statut" />
-          </SelectTrigger>
-          <SelectContent>
-            {STATUS_OPTIONS.map(option => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Rechercher un devis..."
+        />
+        <FilterSelect
+          value={statusFilter}
+          onChange={setStatusFilter}
+          options={STATUS_OPTIONS}
+        />
       </div>
 
       <div className="bg-card rounded-lg border overflow-hidden">
         {filteredQuotes.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
-            <FileText className="w-12 h-12 text-muted-foreground/30 mb-4" />
-            <h3 className="text-lg font-medium text-foreground mb-1">
-              {quotes.length === 0 ? 'Aucun devis' : 'Aucun résultat'}
-            </h3>
-            <p className="mb-4">
-              {quotes.length === 0
-                ? 'Créez votre premier devis pour commencer.'
-                : 'Aucun devis ne correspond à vos critères.'}
-            </p>
-            {quotes.length === 0 && (
-              <Link href="/dashboard/quotes/create">
-                <Button variant="outline">Créer un devis</Button>
-              </Link>
-            )}
-            {quotes.length > 0 && (statusFilter !== 'all' || search) && (
-              <Button variant="outline" onClick={() => { setSearch(''); setStatusFilter('all') }}>
-                Réinitialiser les filtres
-              </Button>
-            )}
-          </div>
+          <EmptyState
+            icon={FileText}
+            title={quotes.length === 0 ? 'Aucun devis' : 'Aucun résultat'}
+            description={quotes.length === 0
+              ? 'Créez votre premier devis pour commencer.'
+              : 'Aucun devis ne correspond à vos critères.'}
+            action={quotes.length === 0
+              ? { label: 'Créer un devis', href: '/dashboard/quotes/create' }
+              : undefined}
+            secondaryAction={quotes.length > 0 && (statusFilter !== 'all' || search)
+              ? { label: 'Réinitialiser les filtres', onClick: () => { setSearch(''); setStatusFilter('all') } }
+              : undefined}
+          />
         ) : (
           <Table>
             <TableHeader className="bg-muted/50">
@@ -176,7 +130,7 @@ export default function QuotesClient({ initialQuotes }: { initialQuotes: any[] }
                   <TableCell className="font-medium">
                     {formatPrice(quote.total)}
                   </TableCell>
-                  <TableCell>{getStatusBadge(quote.status)}</TableCell>
+                  <TableCell>{<StatusBadge status={quote.status} statusConfig={QUOTE_STATUSES} />}</TableCell>
                   <TableCell>
                     <ArrowRight className="w-4 h-4 text-muted-foreground" />
                   </TableCell>

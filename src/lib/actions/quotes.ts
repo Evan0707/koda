@@ -2,34 +2,20 @@
 
 import { db } from '@/db'
 import { quotes, quoteItems } from '@/db/schema/billing'
-import { getOrganizationId, getUser } from '@/lib/auth'
+import { getOrganizationId, getUser, requirePermission } from '@/lib/auth'
 import { QuoteWithDetails } from '@/types/db'
 import { and, desc, eq, ilike, or } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { logAudit } from '@/lib/audit'
 import { AUDIT_ACTIONS } from '@/db/schema/audit'
+import { checkQuoteLimit } from '@/lib/actions/plan-limits'
 
-// Schema for quote items
-const quoteItemSchema = z.object({
- productId: z.string().optional(),
- description: z.string().min(1, 'Description requise'),
- quantity: z.coerce.number().min(1, 'Quantité minimum 1'),
- unitPrice: z.coerce.number().min(0, 'Prix positif requis'),
- vatRate: z.coerce.number().min(0).default(20),
-})
+import { quoteSchema, type CreateQuoteInput } from '@/lib/schemas/billing'
 
-// Schema for quote creation
-const quoteSchema = z.object({
- title: z.string().optional(),
- contactId: z.string().nullable().optional(),
- companyId: z.string().nullable().optional(),
- issueDate: z.string().optional(),
- validUntil: z.string().optional(),
- currency: z.string().default('EUR'),
- status: z.enum(['draft', 'sent', 'accepted', 'rejected']).default('draft'),
- items: z.array(quoteItemSchema).min(1, 'Au moins une ligne est requise'),
-})
+// Schema imported from @/lib/schemas/billing
+
+
 
 export async function getQuotes(query?: string) {
  try {
@@ -83,11 +69,23 @@ export async function getQuote(id: string) {
  }
 }
 
-export async function createQuote(data: any) {
+export async function createQuote(data: CreateQuoteInput) {
  try {
-  const organizationId = await getOrganizationId()
-  const user = await getUser()
+  const auth = await requirePermission('manage_quotes')
+  if ('error' in auth) return { error: auth.error }
+  const { user } = auth
+  const organizationId = user.organizationId!
 
+  const check = await checkQuoteLimit()
+  if (!check.canCreate) {
+   return {
+    error: check.error,
+    upgradeRequired: check.upgradeRequired,
+    currentPlan: check.currentPlan
+   }
+  }
+
+  // Validation ensures data integrity even if types match
   const validated = quoteSchema.parse(data)
 
   const count = await db.$count(quotes, eq(quotes.organizationId, organizationId));
@@ -117,7 +115,7 @@ export async function createQuote(data: any) {
   const quoteId = await db.transaction(async (tx) => {
    const [newQuote] = await tx.insert(quotes).values({
     organizationId,
-    createdById: user?.id,
+    createdById: user.id,
     number,
     title: validated.title,
     contactId: validated.contactId || null,
@@ -163,7 +161,9 @@ export async function createQuote(data: any) {
 
 export async function updateQuoteStatus(id: string, status: string) {
  try {
-  const organizationId = await getOrganizationId()
+  const auth = await requirePermission('manage_quotes')
+  if ('error' in auth) return { error: auth.error }
+  const organizationId = auth.user.organizationId!
 
   await db.update(quotes)
    .set({ status: status as any, updatedAt: new Date() })

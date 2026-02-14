@@ -30,6 +30,7 @@ import {
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import { EmptyState } from '@/components/empty-state'
 
 type AuditLog = {
  id: string
@@ -149,10 +150,11 @@ export function AuditLogsClient({ initialLogs }: { initialLogs: AuditLog[] }) {
     </CardHeader>
     <CardContent>
      {filteredLogs.length === 0 ? (
-      <div className="text-center py-12 text-muted-foreground">
-       <History className="w-12 h-12 mx-auto mb-4 opacity-50" />
-       <p>Aucune activité enregistrée</p>
-      </div>
+      <EmptyState
+       icon={History}
+       title="Aucune activité enregistrée"
+       description="Les actions seront affichées ici"
+      />
      ) : (
       <Table>
        <TableHeader>

@@ -17,44 +17,14 @@ import {
  Building2,
  User,
  Check,
+ Undo2,
 } from 'lucide-react'
 import { signQuote } from '@/lib/actions/quote-signature'
 import { toast } from 'sonner'
 import { triggerFireworks } from '@/lib/confetti'
+import type { PublicQuote } from '@/types/db'
 
-type Quote = {
- id: string
- number: string
- status: string
- title: string | null
- introduction: string | null
- terms: string | null
- notes: string | null
- issueDate: string | null
- validUntil: string | null
- subtotal: number | null
- vatAmount: number | null
- total: number | null
- discount: number | null
- currency: string | null
- depositPercent: number | null
- depositRequired: boolean | null
- signedAt: Date | null
- items: { description: string; quantity: number; unitPrice: number; total: number }[]
- contact: { name: string; email: string | null; companyName: string | null } | null
- organization: {
-  name: string
-  address: string | null
-  city: string | null
-  postalCode: string | null
-  country: string | null
-  siret: string | null
-  vatNumber: string | null
-  logoUrl: string | null
- }
-}
-
-export default function QuoteSignatureClient({ quote }: { quote: Quote }) {
+export default function QuoteSignatureClient({ quote }: { quote: PublicQuote }) {
  const [isPending, startTransition] = useTransition()
  const [isSigned, setIsSigned] = useState(quote.status === 'signed')
  const [signerName, setSignerName] = useState(quote.contact?.name || '')
@@ -62,6 +32,8 @@ export default function QuoteSignatureClient({ quote }: { quote: Quote }) {
  const canvasRef = useRef<HTMLCanvasElement>(null)
  const [isDrawing, setIsDrawing] = useState(false)
  const [hasSignature, setHasSignature] = useState(false)
+ const [strokes, setStrokes] = useState<Array<Array<{ x: number, y: number }>>>([])
+ const [currentStroke, setCurrentStroke] = useState<Array<{ x: number, y: number }>>([])
 
  const formatPrice = (cents: number | null) => {
   if (cents === null) return '0,00 €'
@@ -81,6 +53,28 @@ export default function QuoteSignatureClient({ quote }: { quote: Quote }) {
  }
 
  // Canvas drawing functions
+ const redrawCanvas = (strokesToDraw: Array<Array<{ x: number, y: number }>>) => {
+  const canvas = canvasRef.current
+  if (!canvas) return
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+  strokesToDraw.forEach(stroke => {
+   if (stroke.length === 0) return
+   ctx.beginPath()
+   ctx.moveTo(stroke[0].x, stroke[0].y)
+   stroke.forEach(point => {
+    ctx.lineWidth = 4
+    ctx.lineCap = 'round'
+    ctx.strokeStyle = '#1f2937'
+    ctx.lineTo(point.x, point.y)
+    ctx.stroke()
+   })
+  })
+ }
+
  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
   const canvas = canvasRef.current
   if (!canvas) return
@@ -90,9 +84,14 @@ export default function QuoteSignatureClient({ quote }: { quote: Quote }) {
   if (!ctx) return
 
   const rect = canvas.getBoundingClientRect()
-  const x = 'touches' in e ? e.touches[0].clientX - rect.left : e.clientX - rect.left
-  const y = 'touches' in e ? e.touches[0].clientY - rect.top : e.clientY - rect.top
+  const scaleX = canvas.width / rect.width
+  const scaleY = canvas.height / rect.height
+  const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
+  const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
+  const x = (clientX - rect.left) * scaleX
+  const y = (clientY - rect.top) * scaleY
 
+  setCurrentStroke([{ x, y }])
   ctx.beginPath()
   ctx.moveTo(x, y)
  }
@@ -106,10 +105,16 @@ export default function QuoteSignatureClient({ quote }: { quote: Quote }) {
   if (!ctx) return
 
   const rect = canvas.getBoundingClientRect()
-  const x = 'touches' in e ? e.touches[0].clientX - rect.left : e.clientX - rect.left
-  const y = 'touches' in e ? e.touches[0].clientY - rect.top : e.clientY - rect.top
+  const scaleX = canvas.width / rect.width
+  const scaleY = canvas.height / rect.height
+  const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
+  const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
+  const x = (clientX - rect.left) * scaleX
+  const y = (clientY - rect.top) * scaleY
 
-  ctx.lineWidth = 2
+  setCurrentStroke(prev => [...prev, { x, y }])
+
+  ctx.lineWidth = 4
   ctx.lineCap = 'round'
   ctx.strokeStyle = '#1f2937'
   ctx.lineTo(x, y)
@@ -118,6 +123,10 @@ export default function QuoteSignatureClient({ quote }: { quote: Quote }) {
  }
 
  const stopDrawing = () => {
+  if (currentStroke.length > 0) {
+   setStrokes(prev => [...prev, currentStroke])
+   setCurrentStroke([])
+  }
   setIsDrawing(false)
  }
 
@@ -127,7 +136,17 @@ export default function QuoteSignatureClient({ quote }: { quote: Quote }) {
   const ctx = canvas.getContext('2d')
   if (!ctx) return
   ctx.clearRect(0, 0, canvas.width, canvas.height)
+  setStrokes([])
+  setCurrentStroke([])
   setHasSignature(false)
+ }
+
+ const undoLastStroke = () => {
+  if (strokes.length === 0) return
+  const newStrokes = strokes.slice(0, -1)
+  setStrokes(newStrokes)
+  redrawCanvas(newStrokes)
+  setHasSignature(newStrokes.length > 0)
  }
 
  const handleSign = () => {
@@ -217,11 +236,11 @@ export default function QuoteSignatureClient({ quote }: { quote: Quote }) {
  }
 
  return (
-  <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-background dark:via-background dark:to-background py-8 px-4">
+  <div className="min-h-screen bg-background py-8 px-4">
    <div className="max-w-4xl mx-auto space-y-6">
     {/* Header */}
     <div className="text-center mb-8">
-     <Badge className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 mb-4 hover:bg-indigo-100 dark:hover:bg-indigo-900/50">
+     <Badge className="bg-primary/10 text-primary mb-4 hover:bg-primary/10">
       Devis #{quote.number}
      </Badge>
      <h1 className="text-3xl font-bold text-foreground mb-2">
@@ -341,14 +360,14 @@ export default function QuoteSignatureClient({ quote }: { quote: Quote }) {
     </Card>
 
     {/* Signature Card */}
-    <Card className="border-2 border-indigo-200 dark:border-indigo-900/50">
-     <CardHeader className="bg-indigo-50 dark:bg-indigo-950/30">
-      <CardTitle className="flex items-center gap-2 text-indigo-900 dark:text-indigo-300">
+    <Card className="border-2 border-primary/20">
+     <CardHeader>
+      <CardTitle className="flex items-center gap-2 text-primary">
        <Pen className="w-5 h-5" />
        Signature électronique
       </CardTitle>
      </CardHeader>
-     <CardContent className="pt-6 space-y-6">
+     <CardContent className="space-y-6">
       <p className="text-muted-foreground">
        En signant ce devis, vous acceptez les conditions proposées et confirmez votre accord pour les prestations décrites.
       </p>
@@ -380,23 +399,36 @@ export default function QuoteSignatureClient({ quote }: { quote: Quote }) {
       <div className="space-y-2">
        <div className="flex items-center justify-between">
         <Label>Signature *</Label>
-        <Button
-         variant="ghost"
-         size="sm"
-         onClick={clearSignature}
-         className="text-muted-foreground"
-        >
-         <Eraser className="w-4 h-4 mr-1" />
-         Effacer
-        </Button>
+        <div className="flex gap-2">
+         <Button
+          variant="ghost"
+          size="sm"
+          onClick={undoLastStroke}
+          disabled={strokes.length === 0}
+          className="text-muted-foreground"
+         >
+          <Undo2 className="w-4 h-4 mr-1" />
+          Annuler
+         </Button>
+         <Button
+          variant="ghost"
+          size="sm"
+          onClick={clearSignature}
+          className="text-muted-foreground"
+         >
+          <Eraser className="w-4 h-4 mr-1" />
+          Effacer
+         </Button>
+        </div>
        </div>
        {/* Keep white background for signaturepad as discussed */}
        <div className="border-2 border-dashed border-input rounded-lg bg-white overflow-hidden">
         <canvas
          ref={canvasRef}
-         width={600}
-         height={200}
+         width={1200}
+         height={400}
          className="w-full cursor-crosshair touch-none"
+         style={{ height: '200px' }}
          onMouseDown={startDrawing}
          onMouseMove={draw}
          onMouseUp={stopDrawing}
@@ -415,7 +447,7 @@ export default function QuoteSignatureClient({ quote }: { quote: Quote }) {
       <Button
        onClick={handleSign}
        disabled={isPending || !hasSignature}
-       className="w-full bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-700 h-12 text-lg text-white"
+       className="w-full bg-primary hover:bg-primary/90 h-10 text-md"
       >
        {isPending ? (
         <Loader2 className="w-5 h-5 animate-spin mr-2" />

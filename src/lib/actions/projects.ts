@@ -2,7 +2,7 @@
 
 import { db } from '@/db'
 import { projects } from '@/db/schema/projects'
-import { getOrganizationId, getUser } from '@/lib/auth'
+import { getOrganizationId, getUser, requirePermission } from '@/lib/auth'
 import { Project, ProjectWithDetails, Company, Contact, Quote } from '@/types/db'
 import { and, desc, eq, ilike, isNull, or } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
@@ -100,6 +100,9 @@ export async function getProject(id: string) {
 // Create project
 export async function createProject(data: ProjectFormData) {
  try {
+  const permResult = await requirePermission('manage_projects')
+  if ('error' in permResult) return permResult
+
   const organizationId = await getOrganizationId()
   const user = await getUser()
   const validated = projectSchema.parse(data)
@@ -135,6 +138,9 @@ export async function createProject(data: ProjectFormData) {
 // Update project
 export async function updateProject(id: string, data: ProjectFormData) {
  try {
+  const permResult = await requirePermission('manage_projects')
+  if ('error' in permResult) return permResult
+
   const organizationId = await getOrganizationId()
   const validated = projectSchema.parse(data)
 
@@ -173,9 +179,16 @@ export async function updateProject(id: string, data: ProjectFormData) {
  }
 }
 
+// Valid project statuses
+const VALID_PROJECT_STATUSES = ['active', 'paused', 'completed', 'cancelled'] as const
+
 // Update project status
 export async function updateProjectStatus(id: string, status: string) {
  try {
+  if (!VALID_PROJECT_STATUSES.includes(status as any)) {
+   return { error: `Statut invalide. Valeurs autorisées : ${VALID_PROJECT_STATUSES.join(', ')}` }
+  }
+
   const organizationId = await getOrganizationId()
 
   await db.update(projects)
@@ -200,6 +213,9 @@ export async function updateProjectStatus(id: string, status: string) {
 // Delete project (soft delete)
 export async function deleteProject(id: string) {
  try {
+  const permResult = await requirePermission('manage_projects')
+  if ('error' in permResult) return permResult
+
   const organizationId = await getOrganizationId()
 
   await db.update(projects)

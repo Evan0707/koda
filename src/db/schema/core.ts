@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, jsonb, boolean } from 'drizzle-orm/pg-core'
+import { pgTable, uuid, text, timestamp, jsonb, boolean, integer } from 'drizzle-orm/pg-core'
 import { relations } from 'drizzle-orm'
 
 // ============================================
@@ -31,6 +31,19 @@ export const organizations = pgTable('organizations', {
  stripeSecretKey: text('stripe_secret_key'),
  stripePublishableKey: text('stripe_publishable_key'),
  stripeWebhookSecret: text('stripe_webhook_secret'),
+ stripeAccountId: text('stripe_account_id'), // For Stripe Connect
+
+ // Subscription & Billing
+ plan: text('plan').default('free').notNull(), // free, starter, pro
+ planStatus: text('plan_status').default('active'), // active, past_due, canceled
+ stripeCustomerId: text('stripe_customer_id'),
+ stripeSubscriptionId: text('stripe_subscription_id'),
+ subscriptionCurrentPeriodEnd: timestamp('subscription_current_period_end'),
+
+ // Commission & Limits
+ commissionRate: text('commission_rate').default('0.05'), // 5% for free, 0% for paid
+ monthlyInvoiceCount: integer('monthly_invoice_count').default(0),
+ lastInvoiceResetDate: timestamp('last_invoice_reset_date').defaultNow(),
 
  // Timestamps
  createdAt: timestamp('created_at').defaultNow().notNull(),

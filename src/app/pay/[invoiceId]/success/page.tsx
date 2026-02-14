@@ -80,28 +80,28 @@ export default async function PaymentSuccessPage({
  }
 
  return (
-  <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
+  <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 dark:from-green-950/30 dark:to-emerald-950/20 flex items-center justify-center p-4">
    <Card className="max-w-lg w-full">
     <CardContent className="pt-10 pb-8 text-center">
      {/* Success Icon */}
-     <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-      <CheckCircle className="w-10 h-10 text-green-600" />
+     <div className="w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
+      <CheckCircle className="w-10 h-10 text-green-600 dark:text-green-400" />
      </div>
 
      {/* Title */}
-     <h1 className="text-3xl font-bold text-gray-900 mb-3">
+     <h1 className="text-3xl font-bold text-foreground mb-3">
       Paiement réussi ! 🎉
      </h1>
 
      {/* Message */}
-     <p className="text-gray-600 mb-8 max-w-sm mx-auto">
+     <p className="text-muted-foreground mb-8 max-w-sm mx-auto">
       Merci pour votre règlement. Un email de confirmation vous a été envoyé.
      </p>
 
      {/* Amount confirmation */}
-     <div className="bg-gray-50 rounded-lg p-6 mb-8">
-      <p className="text-sm text-gray-500 mb-1">Référence</p>
-      <p className="text-lg font-mono text-gray-900">{invoiceId.slice(0, 8).toUpperCase()}</p>
+     <div className="bg-muted rounded-lg p-6 mb-8">
+      <p className="text-sm text-muted-foreground mb-1">Référence</p>
+      <p className="text-lg font-mono text-foreground">{invoiceId.slice(0, 8).toUpperCase()}</p>
      </div>
 
      {/* Actions */}
@@ -117,7 +117,7 @@ export default async function PaymentSuccessPage({
        </Link>
       </Button>
 
-      <p className="text-sm text-gray-400">
+      <p className="text-sm text-muted-foreground">
        Vous pouvez fermer cette page en toute sécurité.
       </p>
      </div>

@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import {
   Table,
   TableBody,
@@ -11,15 +10,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { Plus, Search, FileText, ArrowRight, Download, Filter } from 'lucide-react'
+import { Plus, FileText, ArrowRight, Download } from 'lucide-react'
 import { PageHeader } from '@/components/page-header'
+import { SearchInput } from '@/components/search-input'
+import { StatusBadge, type StatusConfig } from '@/components/status-badge'
+import { FilterSelect } from '@/components/filter-select'
+import { EmptyState } from '@/components/empty-state'
+import { formatPrice } from '@/lib/currency'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
@@ -53,35 +50,12 @@ export default function InvoicesClient({ initialInvoices }: { initialInvoices: a
     })
   }, [invoices, search, statusFilter])
 
-  const formatPrice = (cents: number) => {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'EUR',
-    }).format(cents / 100)
-  }
-
-  const getStatusBadge = (status: string) => {
-    const styles: Record<string, string> = {
-      draft: 'bg-muted text-muted-foreground',
-      sent: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300',
-      paid: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300',
-      overdue: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300',
-      cancelled: 'bg-muted/50 text-muted-foreground',
-    }
-
-    const labels: Record<string, string> = {
-      draft: 'Brouillon',
-      sent: 'Envoyée',
-      paid: 'Payée',
-      overdue: 'En retard',
-      cancelled: 'Annulée',
-    }
-
-    return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[status] || styles.draft}`}>
-        {labels[status] || status}
-      </span>
-    )
+  const INVOICE_STATUSES: Record<string, StatusConfig> = {
+    draft: { label: 'Brouillon', variant: 'muted' },
+    sent: { label: 'Envoyée', variant: 'blue' },
+    paid: { label: 'Payée', variant: 'green' },
+    overdue: { label: 'En retard', variant: 'red' },
+    cancelled: { label: 'Annulée', variant: 'muted' },
   }
 
   return (
@@ -111,53 +85,34 @@ export default function InvoicesClient({ initialInvoices }: { initialInvoices: a
       />
 
       <div className="flex items-center gap-4 flex-wrap">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Rechercher une facture..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px]">
-            <Filter className="w-4 h-4 mr-2" />
-            <SelectValue placeholder="Filtrer par statut" />
-          </SelectTrigger>
-          <SelectContent>
-            {STATUS_OPTIONS.map(option => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Rechercher une facture..."
+          className="min-w-[200px]"
+        />
+        <FilterSelect
+          value={statusFilter}
+          onChange={setStatusFilter}
+          options={STATUS_OPTIONS}
+        />
       </div>
 
       <div className="bg-card rounded-lg border overflow-hidden">
         {filteredInvoices.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
-            <FileText className="w-12 h-12 text-muted-foreground/30 mb-4" />
-            <h3 className="text-lg font-medium text-foreground mb-1">
-              {invoices.length === 0 ? 'Aucune facture' : 'Aucun résultat'}
-            </h3>
-            <p className="mb-4">
-              {invoices.length === 0
-                ? 'Convertissez un devis pour créer votre première facture.'
-                : 'Aucune facture ne correspond à vos critères.'}
-            </p>
-            {invoices.length === 0 && (
-              <Link href="/dashboard/quotes">
-                <Button>Aller aux devis</Button>
-              </Link>
-            )}
-            {invoices.length > 0 && (statusFilter !== 'all' || search) && (
-              <Button variant="outline" onClick={() => { setSearch(''); setStatusFilter('all') }}>
-                Réinitialiser les filtres
-              </Button>
-            )}
-          </div>
+          <EmptyState
+            icon={FileText}
+            title={invoices.length === 0 ? 'Aucune facture' : 'Aucun résultat'}
+            description={invoices.length === 0
+              ? 'Convertissez un devis pour créer votre première facture.'
+              : 'Aucune facture ne correspond à vos critères.'}
+            action={invoices.length === 0
+              ? { label: 'Aller aux devis', href: '/dashboard/quotes' }
+              : undefined}
+            secondaryAction={invoices.length > 0 && (statusFilter !== 'all' || search)
+              ? { label: 'Réinitialiser les filtres', onClick: () => { setSearch(''); setStatusFilter('all') } }
+              : undefined}
+          />
         ) : (
           <Table>
             <TableHeader className="bg-muted/50">
@@ -190,7 +145,7 @@ export default function InvoicesClient({ initialInvoices }: { initialInvoices: a
                   <TableCell className="font-medium">
                     {formatPrice(invoice.total)}
                   </TableCell>
-                  <TableCell>{getStatusBadge(invoice.status)}</TableCell>
+                  <TableCell>{<StatusBadge status={invoice.status} statusConfig={INVOICE_STATUSES} />}</TableCell>
                   <TableCell>
                     <ArrowRight className="w-4 h-4 text-muted-foreground" />
                   </TableCell>

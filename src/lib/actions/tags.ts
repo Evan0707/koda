@@ -2,7 +2,7 @@
 
 import { db } from '@/db'
 import { tags, taggables } from '@/db/schema/crm'
-import { getOrganizationId } from '@/lib/auth'
+import { getOrganizationId, requirePermission } from '@/lib/auth'
 import { revalidatePath } from 'next/cache'
 import { eq, and, asc } from 'drizzle-orm'
 
@@ -24,6 +24,9 @@ export async function getTags() {
 
 export async function createTag(name: string, color: string = '#6366F1') {
  try {
+  const permResult = await requirePermission('manage_contacts')
+  if ('error' in permResult) return permResult
+
   const organizationId = await getOrganizationId()
 
   const [tag] = await db.insert(tags).values({
@@ -32,6 +35,7 @@ export async function createTag(name: string, color: string = '#6366F1') {
    color,
   }).returning()
 
+  revalidatePath('/dashboard/contacts')
   return { success: true, tag }
  } catch (error) {
   console.error('Error creating tag:', error)
@@ -43,15 +47,20 @@ export async function deleteTag(id: string) {
  try {
   const organizationId = await getOrganizationId()
 
-  // Delete relations first (cascade should handle this if configured, but safe to delete manually)
-  await db.delete(taggables).where(eq(taggables.tagId, id))
-
-  await db.delete(tags)
-   .where(and(
+  // Verify the tag belongs to this org FIRST, then delete in a transaction
+  await db.transaction(async (tx) => {
+   const tag = await tx.select().from(tags).where(and(
     eq(tags.id, id),
     eq(tags.organizationId, organizationId)
    ))
+   if (tag.length === 0) throw new Error('Tag introuvable')
 
+   // Delete relations first
+   await tx.delete(taggables).where(eq(taggables.tagId, id))
+   await tx.delete(tags).where(eq(tags.id, id))
+  })
+
+  revalidatePath('/dashboard/contacts')
   return { success: true }
  } catch (error) {
   console.error('Error deleting tag:', error)
@@ -78,6 +87,7 @@ export async function assignTag(tagId: string, entityId: string, entityType: str
    taggableType: entityType,
   })
 
+  revalidatePath('/dashboard/contacts')
   return { success: true }
  } catch (error) {
   console.error('Error assigning tag:', error)
@@ -94,6 +104,7 @@ export async function removeTag(tagId: string, entityId: string, entityType: str
     eq(taggables.taggableType, entityType)
    ))
 
+  revalidatePath('/dashboard/contacts')
   return { success: true }
  } catch (error) {
   console.error('Error removing tag:', error)

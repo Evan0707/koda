@@ -17,7 +17,6 @@ import { toast } from 'sonner'
 import {
   Users,
   Building2,
-  Search,
   Plus,
   MoreVertical,
   Pencil,
@@ -49,6 +48,9 @@ import CompaniesClient from './companies-client'
 import { Contact, Company } from '@/types/db'
 import { useConfirm } from '@/components/confirm-dialog'
 import { PageHeader } from '@/components/page-header'
+import { LimitReachedModal } from '@/components/limit-reached-modal'
+import { SearchInput } from '@/components/search-input'
+import { EmptyState } from '@/components/empty-state'
 
 type ContactWithCompany = Contact & {
   company: Company | null
@@ -65,6 +67,8 @@ export default function ContactsClient() {
   const [activeTab, setActiveTab] = useState('contacts')
   const [companyFilter, setCompanyFilter] = useState('all')
   const { confirm } = useConfirm()
+  const [showLimitModal, setShowLimitModal] = useState(false)
+  const [currentPlan, setCurrentPlan] = useState('free')
 
   // Filter contacts by company
   const filteredContacts = useMemo(() => {
@@ -104,7 +108,13 @@ export default function ContactsClient() {
       }
 
       if (result.error) {
-        toast.error(result.error)
+        if ('upgradeRequired' in result && result.upgradeRequired && 'currentPlan' in result) {
+          setCurrentPlan((result as any).currentPlan || 'free')
+          setIsDialogOpen(false) // Close the creation dialog
+          setShowLimitModal(true) // Show the limit modal
+        } else {
+          toast.error(result.error)
+        }
       } else {
         toast.success(editingContact ? 'Contact modifié' : 'Contact créé')
         setIsDialogOpen(false)
@@ -159,15 +169,12 @@ export default function ContactsClient() {
 
         <TabsContent value="contacts" className="space-y-6">
           <div className="flex items-center gap-4 flex-wrap">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Rechercher un contact..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-10"
-              />
-            </div>
+            <SearchInput
+              value={search}
+              onChange={setSearch}
+              placeholder="Rechercher un contact..."
+              className="min-w-[200px] max-w-none"
+            />
             <Select value={companyFilter} onValueChange={setCompanyFilter}>
               <SelectTrigger className="w-[180px]">
                 <Building2 className="w-4 h-4 mr-2" />
@@ -348,29 +355,20 @@ export default function ContactsClient() {
               </div>
             ) : filteredContacts.length === 0 ? (
               <Card>
-                <CardContent className="py-12 text-center">
-                  <User className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-foreground mb-2">
-                    {contacts.length === 0 ? 'Aucun contact' : 'Aucun résultat'}
-                  </h3>
-                  <p className="text-muted-foreground mb-4">
-                    {contacts.length === 0
+                <CardContent>
+                  <EmptyState
+                    icon={User}
+                    title={contacts.length === 0 ? 'Aucun contact' : 'Aucun résultat'}
+                    description={contacts.length === 0
                       ? 'Créez votre premier contact pour commencer'
                       : 'Aucun contact ne correspond à vos critères.'}
-                  </p>
-                  {contacts.length === 0 ? (
-                    <Button
-                      onClick={() => setIsDialogOpen(true)}
-                      className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Créer un contact
-                    </Button>
-                  ) : (
-                    <Button variant="outline" onClick={() => { setSearch(''); setCompanyFilter('all') }}>
-                      Réinitialiser les filtres
-                    </Button>
-                  )}
+                    action={contacts.length === 0
+                      ? { label: 'Créer un contact', onClick: () => setIsDialogOpen(true) }
+                      : undefined}
+                    secondaryAction={contacts.length > 0
+                      ? { label: 'Réinitialiser les filtres', onClick: () => { setSearch(''); setCompanyFilter('all') } }
+                      : undefined}
+                  />
                 </CardContent>
               </Card>
             ) : (
@@ -483,6 +481,12 @@ export default function ContactsClient() {
           <CompaniesClient />
         </TabsContent>
       </Tabs >
+      <LimitReachedModal
+        isOpen={showLimitModal}
+        onClose={() => setShowLimitModal(false)}
+        currentPlan={currentPlan}
+        limitType="contacts"
+      />
     </div >
   )
 }

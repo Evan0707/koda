@@ -2,55 +2,52 @@
 
 import { db } from '@/db'
 import { contacts } from '@/db/schema/crm'
-import { createClient } from '@/lib/supabase/server'
 import { Contact, Company } from '@/types/db'
 import { revalidatePath } from 'next/cache'
 import { eq, and, isNull, ilike, or } from 'drizzle-orm'
 import { logAudit } from '@/lib/audit'
 import { AUDIT_ACTIONS } from '@/db/schema/audit'
+import { checkContactLimit } from '@/lib/actions/plan-limits'
+import { z } from 'zod'
+import { getOrganizationId, requirePermission } from '@/lib/auth'
 
-// Get user's organization ID
-async function getOrganizationId() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) throw new Error('Non authentifié')
-
-  const { data: profile } = await supabase
-    .from('users')
-    .select('organization_id')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile?.organization_id) throw new Error('Organisation non trouvée')
-
-  return profile.organization_id
-}
+import { contactSchema } from '@/lib/schemas/crm'
 
 // Create contact
 export async function createContact(formData: FormData) {
-  const organizationId = await getOrganizationId()
-
-  const firstName = formData.get('firstName') as string
-  const lastName = formData.get('lastName') as string | null
-  const email = formData.get('email') as string | null
-  const phone = formData.get('phone') as string | null
-  const jobTitle = formData.get('jobTitle') as string | null
-  const companyId = formData.get('companyId') as string | null
-
-  if (!firstName) {
-    return { error: 'Le prénom est requis' }
-  }
+  const auth = await requirePermission('manage_contacts')
+  if ('error' in auth) return { error: auth.error }
+  const organizationId = auth.user.organizationId!
 
   try {
+    const rawData = {
+      firstName: formData.get('firstName'),
+      lastName: formData.get('lastName'),
+      email: formData.get('email'),
+      phone: formData.get('phone'),
+      jobTitle: formData.get('jobTitle'),
+      companyId: formData.get('companyId'),
+    }
+
+    const validated = contactSchema.parse(rawData)
+
+    const check = await checkContactLimit()
+    if (!check.canCreate) {
+      return {
+        error: check.error,
+        upgradeRequired: check.upgradeRequired,
+        currentPlan: check.currentPlan
+      }
+    }
+
     const [contact] = await db.insert(contacts).values({
       organizationId,
-      companyId: companyId || null,
-      firstName,
-      lastName,
-      email,
-      phone,
-      jobTitle,
+      companyId: validated.companyId || null,
+      firstName: validated.firstName,
+      lastName: validated.lastName,
+      email: validated.email || null,
+      phone: validated.phone,
+      jobTitle: validated.jobTitle,
     }).returning()
 
     revalidatePath('/dashboard/contacts')
@@ -60,11 +57,15 @@ export async function createContact(formData: FormData) {
       action: AUDIT_ACTIONS.CONTACT_CREATED,
       entityType: 'contact',
       entityId: contact.id,
-      metadata: { firstName, lastName, email }
+      metadata: { firstName: validated.firstName, lastName: validated.lastName, email: validated.email }
     })
 
     return { success: true, contact: contact as Contact }
+
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return { error: error.issues[0].message }
+    }
     console.error('Error creating contact:', error)
     return { error: 'Erreur lors de la création' }
   }
@@ -72,28 +73,30 @@ export async function createContact(formData: FormData) {
 
 // Update contact
 export async function updateContact(id: string, formData: FormData) {
-  const organizationId = await getOrganizationId()
-
-  const firstName = formData.get('firstName') as string
-  const lastName = formData.get('lastName') as string | null
-  const email = formData.get('email') as string | null
-  const phone = formData.get('phone') as string | null
-  const jobTitle = formData.get('jobTitle') as string | null
-  const companyId = formData.get('companyId') as string | null
-
-  if (!firstName) {
-    return { error: 'Le prénom est requis' }
-  }
+  const auth = await requirePermission('manage_contacts')
+  if ('error' in auth) return { error: auth.error }
+  const organizationId = auth.user.organizationId!
 
   try {
+    const rawData = {
+      firstName: formData.get('firstName'),
+      lastName: formData.get('lastName'),
+      email: formData.get('email'),
+      phone: formData.get('phone'),
+      jobTitle: formData.get('jobTitle'),
+      companyId: formData.get('companyId'),
+    }
+
+    const validated = contactSchema.parse(rawData)
+
     const [contact] = await db.update(contacts)
       .set({
-        companyId: companyId || null,
-        firstName,
-        lastName,
-        email,
-        phone,
-        jobTitle,
+        companyId: validated.companyId || null,
+        firstName: validated.firstName,
+        lastName: validated.lastName,
+        email: validated.email || null,
+        phone: validated.phone,
+        jobTitle: validated.jobTitle,
         updatedAt: new Date(),
       })
       .where(and(
@@ -110,11 +113,14 @@ export async function updateContact(id: string, formData: FormData) {
       action: AUDIT_ACTIONS.CONTACT_UPDATED,
       entityType: 'contact',
       entityId: id,
-      metadata: { firstName, lastName, email }
+      metadata: { firstName: validated.firstName, lastName: validated.lastName, email: validated.email }
     })
 
     return { success: true, contact: contact as Contact }
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return { error: error.issues[0].message }
+    }
     console.error('Error updating contact:', error)
     return { error: 'Erreur lors de la mise à jour' }
   }
@@ -122,7 +128,9 @@ export async function updateContact(id: string, formData: FormData) {
 
 // Soft delete contact
 export async function deleteContact(id: string) {
-  const organizationId = await getOrganizationId()
+  const auth = await requirePermission('manage_contacts')
+  if ('error' in auth) return { error: auth.error }
+  const organizationId = auth.user.organizationId!
 
   try {
     await db.update(contacts)

@@ -3,13 +3,15 @@ import { getGmailTokens, getGmailUserEmail } from '@/lib/gmail'
 import { createClient } from '@/lib/supabase/server'
 import { db, schema } from '@/db'
 import { eq } from 'drizzle-orm'
+import { getAppUrl } from '@/lib/utils'
+import { safeEncrypt } from '@/lib/encryption'
 
 export async function GET(request: NextRequest) {
  const searchParams = request.nextUrl.searchParams
  const code = searchParams.get('code')
  const error = searchParams.get('error')
 
- const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+ const baseUrl = getAppUrl()
 
  if (error) {
   console.error('Gmail OAuth error:', error)
@@ -39,11 +41,11 @@ export async function GET(request: NextRequest) {
   // Get user's Gmail email address
   const gmailEmail = await getGmailUserEmail(tokens.access_token)
 
-  // Store tokens in database
+  // Store tokens in database (encrypted)
   await db.update(schema.users)
    .set({
-    gmailAccessToken: tokens.access_token,
-    gmailRefreshToken: tokens.refresh_token,
+    gmailAccessToken: safeEncrypt(tokens.access_token),
+    gmailRefreshToken: safeEncrypt(tokens.refresh_token),
     gmailEmail: gmailEmail,
     gmailConnectedAt: new Date(),
     updatedAt: new Date(),

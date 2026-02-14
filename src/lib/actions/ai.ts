@@ -52,16 +52,19 @@ export async function generateAIContent(prompt: string, context?: string) {
             content
         }
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("AI Generation Error (Groq):", error)
 
         let errorMessage = "Une erreur est survenue lors de la génération avec l'IA."
 
-        if (error.status === 401) {
+        // Safe access to error properties
+        const errorStatus = (error as any)?.status
+
+        if (errorStatus === 401) {
             errorMessage = "Clé API Groq invalide."
-        } else if (error.status === 429) {
+        } else if (errorStatus === 429) {
             errorMessage = "Limite de requêtes Groq atteinte. Réessayez dans quelques secondes."
-        } else if (error.status === 500) {
+        } else if (errorStatus === 500) {
             errorMessage = "Erreur serveur Groq. Réessayez plus tard."
         }
 

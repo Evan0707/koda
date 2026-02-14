@@ -2,7 +2,7 @@
 
 import { db } from '@/db'
 import { products } from '@/db/schema/billing'
-import { getOrganizationId, getUser } from '@/lib/auth'
+import { getOrganizationId, getUser, requirePermission } from '@/lib/auth'
 import { and, desc, eq, ilike } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
@@ -40,7 +40,9 @@ export async function getProducts(query?: string) {
 
 export async function createProduct(formData: FormData) {
  try {
-  const organizationId = await getOrganizationId()
+  const auth = await requirePermission('manage_products')
+  if ('error' in auth) return { error: auth.error }
+  const organizationId = auth.user.organizationId!
 
   const rawData = {
    name: formData.get('name'),
@@ -77,7 +79,9 @@ export async function createProduct(formData: FormData) {
 
 export async function updateProduct(id: string, formData: FormData) {
  try {
-  const organizationId = await getOrganizationId()
+  const auth = await requirePermission('manage_products')
+  if ('error' in auth) return { error: auth.error }
+  const organizationId = auth.user.organizationId!
 
   const rawData = {
    name: formData.get('name'),
@@ -116,7 +120,9 @@ export async function updateProduct(id: string, formData: FormData) {
 
 export async function deleteProduct(id: string) {
  try {
-  const organizationId = await getOrganizationId()
+  const auth = await requirePermission('manage_products')
+  if ('error' in auth) return { error: auth.error }
+  const organizationId = auth.user.organizationId!
 
   // Usually we would soft delete or checking usage, but for now hard delete
   await db.delete(products)

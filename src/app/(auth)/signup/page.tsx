@@ -29,6 +29,18 @@ export default function SignupPage() {
    return
   }
 
+  if (password.length < 8) {
+   toast.error('Le mot de passe doit contenir au moins 8 caract\u00e8res')
+   setLoading(false)
+   return
+  }
+
+  if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
+   toast.error('Le mot de passe doit contenir une majuscule, une minuscule et un chiffre')
+   setLoading(false)
+   return
+  }
+
   try {
    const result = await signUpAction(formData)
 
@@ -85,7 +97,7 @@ export default function SignupPage() {
        placeholder="••••••••"
        className="pl-10"
        required
-       minLength={6}
+       minLength={8}
       />
      </div>
     </div>
@@ -101,7 +113,7 @@ export default function SignupPage() {
        placeholder="••••••••"
        className="pl-10"
        required
-       minLength={6}
+       minLength={8}
       />
      </div>
     </div>

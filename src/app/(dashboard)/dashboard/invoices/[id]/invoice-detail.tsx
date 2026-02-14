@@ -30,7 +30,8 @@ export default function InvoiceDetail({ invoice }: InvoiceDetailProps) {
             if (result.error) {
                 toast.error(result.error)
             } else {
-                toast.success(`Statut mis à jour : ${status}`)
+                const statusLabels: Record<string, string> = { draft: 'Brouillon', sent: 'Envoyé', paid: 'Payé', overdue: 'En retard', cancelled: 'Annulé' }
+                toast.success(`Statut mis à jour : ${statusLabels[status] || status}`)
                 router.refresh()
             }
         })

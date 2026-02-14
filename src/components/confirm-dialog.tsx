@@ -84,7 +84,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
        disabled={isLoading}
        className={options?.variant === 'destructive'
         ? 'bg-red-600 hover:bg-red-700 focus:ring-red-600'
-        : 'bg-indigo-600 hover:bg-indigo-700'
+        : ''
        }
       >
        {isLoading ? (

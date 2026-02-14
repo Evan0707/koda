@@ -100,8 +100,8 @@ export function NotificationsPopover() {
     <ScrollArea className="h-[300px]">
      {notifications.length === 0 ? (
       <div className="flex flex-col items-center justify-center h-full p-4 text-center">
-       <Bell className="h-8 w-8 text-gray-300 mb-2" />
-       <p className="text-sm text-gray-500">Aucune notification</p>
+       <Bell className="h-8 w-8 text-muted-foreground/30 mb-2" />
+       <p className="text-sm text-muted-foreground">Aucune notification</p>
       </div>
      ) : (
       <div className="divide-y">
@@ -114,8 +114,8 @@ export function NotificationsPopover() {
          <div
           key={notification.id}
           className={cn(
-           "p-4 hover:bg-gray-50 transition-colors relative group",
-           !notification.isRead && "bg-blue-50/30"
+           "p-4 hover:bg-muted transition-colors relative group",
+           !notification.isRead && "bg-primary/5"
           )}
          >
           <div className="flex gap-3">
@@ -123,16 +123,16 @@ export function NotificationsPopover() {
             <Icon className="w-3.5 h-3.5" />
            </div>
            <div className="flex-1 space-y-1">
-            <p className={cn("text-sm font-medium", !notification.isRead && "text-blue-900")}>
+            <p className={cn("text-sm font-medium", !notification.isRead && "text-foreground font-semibold")}>
              {notification.title}
             </p>
             {notification.body && (
-             <p className="text-xs text-gray-500 line-clamp-2">
+             <p className="text-xs text-muted-foreground line-clamp-2">
               {notification.body}
              </p>
             )}
             <div className="flex items-center gap-2 mt-2">
-             <p className="text-[10px] text-gray-400">
+             <p className="text-[10px] text-muted-foreground">
               {new Date(notification.createdAt).toLocaleDateString('fr-FR', {
                hour: '2-digit',
                minute: '2-digit'
@@ -142,7 +142,7 @@ export function NotificationsPopover() {
               <Link
                href={notification.link}
                onClick={() => setIsOpen(false)}
-               className="text-[10px] text-blue-600 hover:underline"
+               className="text-[10px] text-primary hover:underline"
               >
                Voir
               </Link>
@@ -160,7 +160,7 @@ export function NotificationsPopover() {
              handleMarkAsRead(notification.id)
             }}
            >
-            <Check className="w-3 h-3 text-gray-400" />
+            <Check className="w-3 h-3 text-muted-foreground" />
            </Button>
           )}
          </div>

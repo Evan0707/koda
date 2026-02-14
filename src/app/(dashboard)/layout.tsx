@@ -1,3 +1,4 @@
+import { getSubscriptionStatus } from '@/lib/actions/subscriptions'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
@@ -49,11 +50,19 @@ export default async function DashboardLayout({
  // If error or no profile, we still have user from auth
  const profile = 'profile' in result ? result.profile : null
 
+ // Fetch subscription status
+ const subscriptionResult = await getSubscriptionStatus()
+ const subscriptionStatus = 'error' in subscriptionResult ? undefined : subscriptionResult as any
+
  return (
   <ConfirmProvider>
    <div className="min-h-screen bg-muted/20 dark:bg-background">
     {/* Sidebar - Client Component */}
-    <Sidebar />
+    <Sidebar
+     subscriptionStatus={subscriptionStatus}
+     role={(profile?.role as 'member' | 'owner' | 'admin') || 'member'}
+    />
+
 
     {/* Main Content */}
     <main className="lg:pl-60 min-h-screen flex flex-col">

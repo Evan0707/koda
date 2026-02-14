@@ -35,6 +35,7 @@ import {
 } from '@/lib/actions/time-entries'
 import { Project } from '@/types/db'
 import { useConfirm } from '@/components/confirm-dialog'
+import { EmptyState } from '@/components/empty-state'
 
 const formatDuration = (minutes: number) => {
  const hours = Math.floor(minutes / 60)
@@ -409,14 +410,12 @@ export default function TimeTrackingClient({
    <div className="space-y-6">
     {sortedDates.length === 0 ? (
      <Card>
-      <CardContent className="py-12 text-center">
-       <Clock className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
-       <h3 className="text-lg font-medium text-foreground mb-2">
-        Aucune entrée
-       </h3>
-       <p className="text-muted-foreground mb-4">
-        Commencez à suivre votre temps
-       </p>
+      <CardContent>
+       <EmptyState
+        icon={Clock}
+        title="Aucune entrée"
+        description="Commencez à suivre votre temps"
+       />
       </CardContent>
      </Card>
     ) : (

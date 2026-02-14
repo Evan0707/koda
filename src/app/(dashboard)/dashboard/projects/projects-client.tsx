@@ -18,7 +18,6 @@ import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import {
  FolderKanban,
- Search,
  Plus,
  MoreVertical,
  Pencil,
@@ -53,6 +52,10 @@ import { Project, Company } from '@/types/db'
 import { useEffect } from 'react'
 import { useConfirm } from '@/components/confirm-dialog'
 import { PageHeader } from '@/components/page-header'
+import { SearchInput } from '@/components/search-input'
+import { FilterSelect } from '@/components/filter-select'
+import { EmptyState } from '@/components/empty-state'
+import { formatPrice } from '@/lib/currency'
 
 type ProjectWithCompany = Project & {
  company: Company | null
@@ -126,7 +129,7 @@ export default function ProjectsClient({ initialProjects }: { initialProjects: P
     result = await createProject(data)
    }
 
-   if (result.error) {
+   if ('error' in result) {
     toast.error(result.error)
    } else {
     toast.success(editingProject ? 'Projet modifié' : 'Projet créé')
@@ -147,7 +150,7 @@ export default function ProjectsClient({ initialProjects }: { initialProjects: P
    variant: 'destructive',
    onConfirm: async () => {
     const result = await deleteProject(id)
-    if (result.error) {
+    if ('error' in result) {
      toast.error(result.error)
     } else {
      toast.success('Projet supprimé')
@@ -165,11 +168,6 @@ export default function ProjectsClient({ initialProjects }: { initialProjects: P
  const formatDate = (date: string | null) => {
   if (!date) return null
   return new Date(date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
- }
-
- const formatBudget = (amount: number | null) => {
-  if (!amount) return null
-  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(amount / 100)
  }
 
  return (
@@ -338,27 +336,24 @@ export default function ProjectsClient({ initialProjects }: { initialProjects: P
 
    {/* Filters */}
    <div className="flex items-center gap-4">
-    <div className="relative flex-1">
-     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-     <Input
-      placeholder="Rechercher un projet..."
-      value={search}
-      onChange={(e) => setSearch(e.target.value)}
-      className="pl-10"
-     />
-    </div>
-    <Select value={statusFilter} onValueChange={setStatusFilter}>
-     <SelectTrigger className="w-40">
-      <SelectValue placeholder="Tous les statuts" />
-     </SelectTrigger>
-     <SelectContent>
-      <SelectItem value="all">Tous les statuts</SelectItem>
-      <SelectItem value="active">Actifs</SelectItem>
-      <SelectItem value="paused">En pause</SelectItem>
-      <SelectItem value="completed">Terminés</SelectItem>
-      <SelectItem value="cancelled">Annulés</SelectItem>
-     </SelectContent>
-    </Select>
+    <SearchInput
+     value={search}
+     onChange={setSearch}
+     placeholder="Rechercher un projet..."
+     className="max-w-none"
+    />
+    <FilterSelect
+     value={statusFilter}
+     onChange={setStatusFilter}
+     options={[
+      { value: 'all', label: 'Tous les statuts' },
+      { value: 'active', label: 'Actifs' },
+      { value: 'paused', label: 'En pause' },
+      { value: 'completed', label: 'Terminés' },
+      { value: 'cancelled', label: 'Annulés' },
+     ]}
+     className="w-40"
+    />
    </div>
 
    {/* Projects Grid */}
@@ -390,21 +385,13 @@ export default function ProjectsClient({ initialProjects }: { initialProjects: P
      </div>
     ) : projects.length === 0 ? (
      <Card>
-      <CardContent className="py-12 text-center">
-       <FolderKanban className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
-       <h3 className="text-lg font-medium text-foreground mb-2">
-        Aucun projet
-       </h3>
-       <p className="text-muted-foreground mb-4">
-        Créez votre premier projet pour commencer
-       </p>
-       <Button
-        onClick={() => setIsDialogOpen(true)}
-        className="bg-primary hover:bg-primary/90"
-       >
-        <Plus className="w-4 h-4 mr-2" />
-        Créer un projet
-       </Button>
+      <CardContent>
+       <EmptyState
+        icon={FolderKanban}
+        title="Aucun projet"
+        description="Créez votre premier projet pour commencer"
+        action={{ label: 'Créer un projet', onClick: () => setIsDialogOpen(true) }}
+       />
       </CardContent>
      </Card>
     ) : (
@@ -461,7 +448,7 @@ export default function ProjectsClient({ initialProjects }: { initialProjects: P
            </Badge>
            {project.budgetAmount && (
             <Badge variant="outline">
-             {formatBudget(project.budgetAmount)}
+             {formatPrice(project.budgetAmount!, 'EUR')}
             </Badge>
            )}
            {project.manager && (

@@ -16,39 +16,7 @@ import {
 } from 'lucide-react'
 import { createCheckoutSession } from '@/lib/actions/stripe'
 import { cn } from '@/lib/utils'
-
-type Invoice = {
- id: string
- number: string
- issueDate: Date
- dueDate: Date | null
- status: string | null
- subtotal: number
- vatAmount: number
- total: number
- notes: string | null
- items: {
-  description: string | null
-  quantity: number
-  unitPrice: number
-  total: number
- }[]
- contact: {
-  name: string
-  email: string | null
-  companyName: string | null
- } | null
- organization: {
-  name: string
-  address: string | null
-  city: string | null
-  postalCode: string | null
-  country: string | null
-  siret: string | null
-  vatNumber: string | null
-  logoUrl: string | null
- }
-}
+import type { PublicInvoice } from '@/types/db'
 
 const formatCurrency = (cents: number) =>
  new Intl.NumberFormat('fr-FR', {
@@ -71,7 +39,7 @@ export default function PaymentClient({
  hasStripe,
  alreadyPaid,
 }: {
- invoice: Invoice | null
+ invoice: PublicInvoice | null
  hasStripe: boolean
  alreadyPaid: boolean
 }) {
@@ -313,7 +281,7 @@ export default function PaymentClient({
           <Button
            onClick={handlePayment}
            disabled={isPending}
-           className="w-full h-12 text-lg bg-indigo-600 hover:bg-indigo-700 text-white"
+           className="w-full h-12 text-lg"
           >
            {isPending ? (
             <>

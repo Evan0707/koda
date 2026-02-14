@@ -1,6 +1,9 @@
 import { google } from 'googleapis'
 import { db, schema } from '@/db'
 import { eq } from 'drizzle-orm'
+import { safeEncrypt, safeDecrypt } from '@/lib/encryption'
+
+import { getAppUrl } from '@/lib/utils'
 
 const SCOPES = ['https://mail.google.com/']
 
@@ -9,7 +12,7 @@ function createOAuth2Client() {
   return new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID || '',
     process.env.GOOGLE_CLIENT_SECRET || '',
-    `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/auth/gmail/callback`
+    `${getAppUrl()}/api/auth/gmail/callback`
   )
 }
 
@@ -47,10 +50,13 @@ async function refreshAccessToken(userId: string, refreshToken: string) {
 
   const { credentials } = await oauth2Client.refreshAccessToken()
 
+  // Encrypt before storing
+  const encryptedToken = credentials.access_token ? safeEncrypt(credentials.access_token) : credentials.access_token
+
   // Update stored access token
   await db.update(schema.users)
     .set({
-      gmailAccessToken: credentials.access_token,
+      gmailAccessToken: encryptedToken,
       updatedAt: new Date(),
     })
     .where(eq(schema.users.id, userId))
@@ -120,13 +126,14 @@ export async function sendGmailEmail(
 
   const oauth2Client = createOAuth2Client()
 
-  // Try with current access token, refresh if needed
-  let accessToken = user.gmailAccessToken
+  // Decrypt tokens (backward-compatible with plaintext)
+  let accessToken = safeDecrypt(user.gmailAccessToken)
+  const refreshToken = safeDecrypt(user.gmailRefreshToken)
 
   try {
     oauth2Client.setCredentials({
       access_token: accessToken,
-      refresh_token: user.gmailRefreshToken,
+      refresh_token: refreshToken,
     })
 
     // Check if token is expired by making a test request
@@ -148,7 +155,7 @@ export async function sendGmailEmail(
     // If token expired, try to refresh
     if (error.code === 401 || error.message?.includes('invalid_grant')) {
       try {
-        const accessToken = await refreshAccessToken(userId, user.gmailRefreshToken)
+        const accessToken = await refreshAccessToken(userId, refreshToken)
 
         oauth2Client.setCredentials({ access_token: accessToken })
         const gmail = google.gmail({ version: 'v1', auth: oauth2Client })

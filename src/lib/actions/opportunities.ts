@@ -1,28 +1,24 @@
 'use server'
 
 import { db } from '@/db'
-import { opportunities } from '@/db/schema/crm'
+import { opportunities, pipelineStages } from '@/db/schema/crm'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { eq, and, isNull, desc } from 'drizzle-orm'
+import { getOrganizationId, requirePermission } from '@/lib/auth'
+import { z } from 'zod'
 
-// Get user's organization ID
-async function getOrganizationId() {
- const supabase = await createClient()
- const { data: { user } } = await supabase.auth.getUser()
-
- if (!user) throw new Error('Non authentifié')
-
- const { data: profile } = await supabase
-  .from('users')
-  .select('organization_id')
-  .eq('id', user.id)
-  .single()
-
- if (!profile?.organization_id) throw new Error('Organisation non trouvée')
-
- return profile.organization_id
-}
+// Validation schema for opportunity value
+const MAX_VALUE_CENTS = 999_999_999_99 // ~10M
+const opportunitySchema = z.object({
+ name: z.string().min(1, 'Le nom est requis'),
+ value: z.number().min(0).max(MAX_VALUE_CENTS, 'Valeur trop élevée'),
+ stageId: z.string().min(1, 'L\'\u00e9tape est requise'),
+ companyId: z.string().nullable().optional(),
+ contactId: z.string().nullable().optional(),
+ probability: z.number().min(0).max(100).default(50),
+ expectedCloseDate: z.string().nullable().optional(),
+})
 
 // Get all opportunities with related data
 export async function getOpportunities() {
@@ -52,6 +48,9 @@ export async function getOpportunities() {
 
 // Create opportunity
 export async function createOpportunity(formData: FormData) {
+ const permResult = await requirePermission('manage_contacts')
+ if ('error' in permResult) return permResult
+
  const organizationId = await getOrganizationId()
  const supabase = await createClient()
  const { data: { user } } = await supabase.auth.getUser()
@@ -95,6 +94,9 @@ export async function createOpportunity(formData: FormData) {
 
 // Update opportunity
 export async function updateOpportunity(id: string, formData: FormData) {
+ const permResult = await requirePermission('manage_contacts')
+ if ('error' in permResult) return permResult
+
  const organizationId = await getOrganizationId()
 
  const name = formData.get('name') as string
@@ -163,6 +165,9 @@ export async function moveOpportunityToStage(opportunityId: string, stageId: str
 
 // Soft delete opportunity
 export async function deleteOpportunity(id: string) {
+ const permResult = await requirePermission('manage_contacts')
+ if ('error' in permResult) return permResult
+
  const organizationId = await getOrganizationId()
 
  try {
@@ -186,10 +191,19 @@ export async function closeOpportunityWon(id: string) {
  const organizationId = await getOrganizationId()
 
  try {
+  // Find the 'won' stage for this org
+  const wonStage = await db.query.pipelineStages.findFirst({
+   where: and(
+    eq(pipelineStages.organizationId, organizationId),
+    eq(pipelineStages.isWon, true)
+   )
+  })
+
   const [opportunity] = await db.update(opportunities)
    .set({
     closedAt: new Date(),
     probability: 100,
+    ...(wonStage ? { stageId: wonStage.id } : {}),
     updatedAt: new Date(),
    })
    .where(and(
@@ -212,11 +226,20 @@ export async function closeOpportunityLost(id: string, reason?: string) {
  const organizationId = await getOrganizationId()
 
  try {
+  // Find the 'lost' stage for this org
+  const lostStage = await db.query.pipelineStages.findFirst({
+   where: and(
+    eq(pipelineStages.organizationId, organizationId),
+    eq(pipelineStages.isLost, true)
+   )
+  })
+
   const [opportunity] = await db.update(opportunities)
    .set({
     closedAt: new Date(),
     lostReason: reason || null,
     probability: 0,
+    ...(lostStage ? { stageId: lostStage.id } : {}),
     updatedAt: new Date(),
    })
    .where(and(

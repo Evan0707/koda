@@ -2,32 +2,16 @@
 
 import { db } from '@/db'
 import { companies } from '@/db/schema/crm'
-import { createClient } from '@/lib/supabase/server'
 import { Company } from '@/types/db'
 import { revalidatePath } from 'next/cache'
 import { eq, and, isNull, ilike, or } from 'drizzle-orm'
-
-// Get user's organization ID
-async function getOrganizationId() {
- const supabase = await createClient()
- const { data: { user } } = await supabase.auth.getUser()
-
- if (!user) throw new Error('Non authentifié')
-
- const { data: profile } = await supabase
-  .from('users')
-  .select('organization_id')
-  .eq('id', user.id)
-  .single()
-
- if (!profile?.organization_id) throw new Error('Organisation non trouvée')
-
- return profile.organization_id
-}
+import { getOrganizationId, requirePermission } from '@/lib/auth'
 
 // Create company
 export async function createCompany(formData: FormData) {
- const organizationId = await getOrganizationId()
+ const auth = await requirePermission('manage_contacts')
+ if ('error' in auth) return { error: auth.error }
+ const organizationId = auth.user.organizationId!
 
  const name = formData.get('name') as string
  const website = formData.get('website') as string | null
@@ -69,7 +53,9 @@ export async function createCompany(formData: FormData) {
 
 // Update company
 export async function updateCompany(id: string, formData: FormData) {
- const organizationId = await getOrganizationId()
+ const auth = await requirePermission('manage_contacts')
+ if ('error' in auth) return { error: auth.error }
+ const organizationId = auth.user.organizationId!
 
  const name = formData.get('name') as string
  const website = formData.get('website') as string | null
@@ -118,7 +104,9 @@ export async function updateCompany(id: string, formData: FormData) {
 
 // Soft delete company
 export async function deleteCompany(id: string) {
- const organizationId = await getOrganizationId()
+ const auth = await requirePermission('manage_contacts')
+ if ('error' in auth) return { error: auth.error }
+ const organizationId = auth.user.organizationId!
 
  try {
   await db.update(companies)

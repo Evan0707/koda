@@ -48,3 +48,74 @@ export type ProjectWithDetails = Project & {
  contact: Contact | null
  quote: Quote | null
 }
+
+// ===========================================
+// Public Page Types (for unauthenticated views)
+// ===========================================
+
+/** Organization info shown on public pages */
+export type PublicOrganization = {
+ name: string
+ address: string | null
+ city: string | null
+ postalCode: string | null
+ country: string | null
+ siret: string | null
+ vatNumber: string | null
+ logoUrl: string | null
+}
+
+/** Contact info shown on public pages */
+export type PublicContact = {
+ name: string
+ email: string | null
+ companyName: string | null
+}
+
+/** Line item for public invoices/quotes */
+export type PublicLineItem = {
+ description: string | null
+ quantity: number
+ unitPrice: number
+ total: number
+}
+
+/** Invoice data for public payment page */
+export type PublicInvoice = {
+ id: string
+ number: string
+ issueDate: Date
+ dueDate: Date | null
+ status: string | null
+ subtotal: number
+ vatAmount: number
+ total: number
+ notes: string | null
+ items: PublicLineItem[]
+ contact: PublicContact | null
+ organization: PublicOrganization
+}
+
+/** Quote data for public signature page */
+export type PublicQuote = {
+ id: string
+ number: string
+ status: string
+ title: string | null
+ introduction: string | null
+ terms: string | null
+ notes: string | null
+ issueDate: string | null
+ validUntil: string | null
+ subtotal: number | null
+ vatAmount: number | null
+ total: number | null
+ discount: number | null
+ currency: string | null
+ depositPercent: number | null
+ depositRequired: boolean | null
+ signedAt: Date | null
+ items: { description: string; quantity: number; unitPrice: number; total: number }[]
+ contact: PublicContact | null
+ organization: PublicOrganization
+}

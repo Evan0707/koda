@@ -2,9 +2,16 @@
 
 import { db, schema } from '@/db'
 import { eq, isNull, and } from 'drizzle-orm'
+import { getPublicQuoteSchema, signQuoteSchema, validateInput } from '@/lib/validations'
 
 // Get quote for public signature page (no auth required)
 export async function getPublicQuote(quoteId: string) {
+ // Validate input
+ const validation = validateInput(getPublicQuoteSchema, { quoteId })
+ if (!validation.success) {
+  return { error: validation.error }
+ }
+
  try {
   const quote = await db.query.quotes.findFirst({
    where: and(
@@ -90,6 +97,12 @@ export async function signQuote(
   signerIp?: string
  }
 ) {
+ // Validate input
+ const validation = validateInput(signQuoteSchema, { quoteId, signatureData })
+ if (!validation.success) {
+  return { error: validation.error }
+ }
+
  try {
   const quote = await db.query.quotes.findFirst({
    where: and(

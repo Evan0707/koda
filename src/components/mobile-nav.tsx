@@ -16,6 +16,8 @@ import {
  X,
 } from 'lucide-react'
 import { NavItem } from './nav-item'
+import Image from 'next/image'
+import logo from '../../assets/logo.png'
 
 const navSections = [
  {
@@ -57,10 +59,10 @@ export function MobileNav() {
    {/* Mobile menu button */}
    <button
     onClick={() => setIsOpen(true)}
-    className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-gray-100 transition-colors"
+    className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-muted transition-colors"
     aria-label="Open menu"
    >
-    <Menu className="w-6 h-6 text-gray-600" />
+    <Menu className="w-6 h-6 text-muted-foreground" />
    </button>
 
    {/* Mobile sidebar overlay */}
@@ -73,21 +75,21 @@ export function MobileNav() {
      />
 
      {/* Sidebar */}
-     <aside className="fixed inset-y-0 left-0 w-72 bg-white z-50 lg:hidden shadow-xl animate-slide-in-right">
+     <aside className="fixed inset-y-0 left-0 w-72 bg-sidebar z-50 lg:hidden shadow-xl animate-slide-in-right">
       {/* Header */}
-      <div className="h-16 flex items-center justify-between px-5 border-b border-gray-100">
+      <div className="h-16 flex items-center justify-between px-5 border-b border-sidebar-border">
        <Link href="/dashboard" className="flex items-center gap-2" onClick={() => setIsOpen(false)}>
-        <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-         <span className="text-white font-bold text-sm">K</span>
+        <div className="w-8 h-8 bg-sidebar-primary rounded-lg flex items-center justify-center">
+         <Image src={logo} alt="Logo" className='w-full h-full object-contain rounded-lg' />
         </div>
-        <span className="text-lg font-semibold text-gray-900">KodaFlow</span>
+        <span className="text-lg font-semibold text-sidebar-foreground">KodaFlow</span>
        </Link>
        <button
         onClick={() => setIsOpen(false)}
-        className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+        className="p-2 rounded-lg hover:bg-sidebar-accent/50 transition-colors"
         aria-label="Close menu"
        >
-        <X className="w-5 h-5 text-gray-500" />
+        <X className="w-5 h-5 text-sidebar-foreground/70" />
        </button>
       </div>
 
@@ -96,7 +98,7 @@ export function MobileNav() {
        {navSections.map((section, idx) => (
         <div key={idx}>
          {section.title && (
-          <p className="px-3 mb-2 text-xs font-medium text-gray-400 uppercase tracking-wider">
+          <p className="px-3 mb-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
            {section.title}
           </p>
          )}

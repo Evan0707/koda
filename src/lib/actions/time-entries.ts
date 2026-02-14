@@ -278,7 +278,11 @@ export async function stopTimer(id: string) {
     endedAt: new Date(),
     updatedAt: new Date(),
    })
-   .where(eq(timeEntries.id, id))
+   .where(and(
+    eq(timeEntries.id, id),
+    eq(timeEntries.organizationId, organizationId),
+    eq(timeEntries.userId, user!.id)
+   ))
    .returning()
 
   revalidatePath('/dashboard/time')

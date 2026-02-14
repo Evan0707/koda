@@ -63,7 +63,9 @@ export async function markAllAsRead() {
  return { success: true }
 }
 
-// Internal function to create notification (not exposed as server action for client)
+// Internal function to create notification
+// WARNING: This is in a 'use server' file but should only be called server-side.
+// It validates that the caller is authenticated and the target userId belongs to the same org.
 export async function createNotification(userId: string, organizationId: string, data: {
  title: string
  message?: string
@@ -73,6 +75,20 @@ export async function createNotification(userId: string, organizationId: string,
  resourceId?: string
 }) {
  try {
+  // Security: verify the caller is authenticated and belongs to the target org
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Non autorisé' }
+
+  // Verify caller belongs to the same organization
+  const callerUser = await db.query.users.findFirst({
+   where: and(
+    eq(schema.users.id, user.id),
+    eq(schema.users.organizationId, organizationId)
+   )
+  })
+  if (!callerUser) return { error: 'Non autorisé' }
+
   await db.insert(schema.notifications).values({
    userId,
    organizationId,

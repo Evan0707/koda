@@ -16,6 +16,7 @@ import {
  ArrowLeft
 } from 'lucide-react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -27,6 +28,9 @@ import {
 import { Timeline } from '@/components/crm/timeline'
 import { TagInput } from '@/components/ui/tag-input'
 import { Separator } from '@/components/ui/separator'
+import { useConfirm } from '@/components/confirm-dialog'
+import { deleteContact } from '@/lib/actions/contacts'
+import { toast } from 'sonner'
 
 type ContactViewProps = {
  contact: any // Typed properly in page
@@ -35,6 +39,27 @@ type ContactViewProps = {
 }
 
 export default function ContactView({ contact, activities, opportunities }: ContactViewProps) {
+ const { confirm } = useConfirm()
+ const router = useRouter()
+
+ const handleDelete = () => {
+  confirm({
+   title: 'Supprimer le contact',
+   description: `Êtes-vous sûr de vouloir supprimer ${contact.firstName} ${contact.lastName} ? Cette action est irréversible.`,
+   confirmText: 'Supprimer',
+   variant: 'destructive',
+   onConfirm: async () => {
+    const result = await deleteContact(contact.id)
+    if (result?.error) {
+     toast.error(result.error)
+    } else {
+     toast.success('Contact supprimé')
+     router.push('/dashboard/contacts')
+    }
+   },
+  })
+ }
+
  const getInitials = (first: string, last: string | null) => {
   return `${first?.[0] || ''}${last?.[0] || ''}`.toUpperCase()
  }
@@ -100,7 +125,7 @@ export default function ContactView({ contact, activities, opportunities }: Cont
          </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-         <DropdownMenuItem className="text-red-600 dark:text-red-400">
+         <DropdownMenuItem className="text-red-600 dark:text-red-400" onClick={handleDelete}>
           <Trash2 className="w-4 h-4 mr-2" />
           Supprimer
          </DropdownMenuItem>

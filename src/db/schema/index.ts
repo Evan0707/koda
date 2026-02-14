@@ -4,6 +4,9 @@
 // Core
 export * from './core'
 
+// Subscriptions
+export * from './subscriptions'
+
 // CRM
 export * from './crm'
 

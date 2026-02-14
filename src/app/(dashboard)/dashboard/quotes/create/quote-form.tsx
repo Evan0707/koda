@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -12,12 +12,16 @@ import {
  SelectTrigger,
  SelectValue,
 } from "@/components/ui/select"
+import { Separator } from '@/components/ui/separator'
 import { Textarea } from '@/components/ui/textarea'
+import { Switch } from '@/components/ui/switch'
 import { Plus, Trash2, ArrowLeft, Loader2, Save } from 'lucide-react'
 import Link from 'next/link'
 import { createQuote } from '@/lib/actions/quotes'
+import { type CreateQuoteInput } from '@/lib/schemas/billing'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
+import { LimitReachedModal } from '@/components/limit-reached-modal'
 import { CURRENCIES, formatPriceFromEuros, getCurrencySymbol } from '@/lib/currency'
 
 type QuoteItem = {
@@ -37,6 +41,17 @@ interface QuoteFormProps {
 export default function QuoteForm({ companies, contacts, products }: QuoteFormProps) {
  const [isPending, startTransition] = useTransition()
  const router = useRouter()
+
+ // Form State
+ // State for modals/limits
+ const [showLimitModal, setShowLimitModal] = useState(false)
+ const [currentPlan, setCurrentPlan] = useState('free')
+
+ // Client-side rendering check
+ const [isClient, setIsClient] = useState(false)
+ useEffect(() => {
+  setIsClient(true)
+ }, [])
 
  // Form State
  const [title, setTitle] = useState('')
@@ -117,21 +132,35 @@ export default function QuoteForm({ companies, contacts, products }: QuoteFormPr
   }
 
   startTransition(async () => {
-   const result = await createQuote({
-    title,
+   const quoteData: CreateQuoteInput = {
+    title: title || undefined,
     companyId: selectedCompany || null,
     contactId: selectedContact || null,
     issueDate,
-    validUntil,
+    validUntil: validUntil || undefined,
     status: 'draft',
-    items: items
-   })
+    currency,
+    items: items.map(item => ({
+     ...item,
+     productId: item.productId || undefined
+    }))
+   }
+
+   const result = await createQuote(quoteData)
 
    if (result.error) {
-    toast.error(result.error)
+    // Assuming setCurrentPlan and setShowLimitModal are defined elsewhere or need to be added
+    // For this specific change, we'll add the upgradeRequired check
+    if ('upgradeRequired' in result && result.upgradeRequired) {
+     setCurrentPlan(result.currentPlan || 'free')
+     setShowLimitModal(true)
+    } else {
+     toast.error(result.error)
+    }
    } else {
     toast.success('Devis créé avec succès')
     router.push(`/dashboard/quotes/${result.id}`)
+    // router.refresh() // Added based on the provided snippet, assuming it's desired
    }
   })
  }
@@ -142,14 +171,14 @@ export default function QuoteForm({ companies, contacts, products }: QuoteFormPr
    <div className="flex items-center gap-4 mb-6">
     <Link
      href="/dashboard/quotes"
-     className="p-2 hover:bg-gray-100 rounded-full text-gray-500 transition-colors"
+     className="p-2 hover:bg-muted rounded-full text-muted-foreground transition-colors"
     >
      <ArrowLeft className="w-5 h-5" />
     </Link>
     <div className="flex-1">
-     <h1 className="text-2xl font-bold text-gray-900">Nouveau Devis</h1>
+     <h1 className="text-2xl font-bold text-primary">Nouveau Devis</h1>
     </div>
-    <Button onClick={handleSubmit} disabled={isPending} className="bg-indigo-600 hover:bg-indigo-700">
+    <Button onClick={handleSubmit} disabled={isPending} className="bg-primary hover:bg-primary/80">
      {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
      Enregistrer le brouillon
     </Button>
@@ -192,15 +221,18 @@ export default function QuoteForm({ companies, contacts, products }: QuoteFormPr
 
       <div className="space-y-2">
        <Label>Devise</Label>
-       <select
-        className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
-        value={currency}
-        onChange={(e) => setCurrency(e.target.value)}
-       >
-        {CURRENCIES.map((c) => (
-         <option key={c.code} value={c.code}>{c.symbol} - {c.name}</option>
-        ))}
-       </select>
+       <Select value={currency} onValueChange={setCurrency}>
+        <SelectTrigger>
+         <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+         {CURRENCIES.map((c) => (
+          <SelectItem key={c.code} value={c.code}>
+           {c.symbol} - {c.name}
+          </SelectItem>
+         ))}
+        </SelectContent>
+       </Select>
       </div>
      </CardContent>
     </Card>
@@ -213,19 +245,32 @@ export default function QuoteForm({ companies, contacts, products }: QuoteFormPr
      <CardContent className="space-y-4">
       <div className="space-y-2">
        <Label>Entreprise</Label>
-       <select
-        className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
+       <Select
         value={selectedCompany}
-        onChange={(e) => {
-         setSelectedCompany(e.target.value);
-         if (e.target.value) setSelectedContact(''); // Clear contact if company selected (simplification)
+        onValueChange={(value) => {
+         if (value === '__create_company__') {
+          router.push('/dashboard/companies/new');
+          return;
+         }
+         setSelectedCompany(value);
+         if (value) setSelectedContact('');
         }}
        >
-        <option value="">Sélectionner une entreprise...</option>
-        {companies.map((c: any) => (
-         <option key={c.id} value={c.id}>{c.name}</option>
-        ))}
-       </select>
+        <SelectTrigger className="w-full">
+         <SelectValue placeholder="Sélectionner une entreprise..." />
+        </SelectTrigger>
+        <SelectContent>
+         {companies.map((c: any) => (
+          <SelectItem key={c.id} value={c.id}>
+           {c.name}
+          </SelectItem>
+         ))}
+         <Separator className="my-1" />
+         <SelectItem value="__create_company__" className="text-primary font-medium">
+          + Créer une entreprise
+         </SelectItem>
+        </SelectContent>
+       </Select>
       </div>
 
       <div className="relative">
@@ -233,25 +278,38 @@ export default function QuoteForm({ companies, contacts, products }: QuoteFormPr
         <span className="w-full border-t" />
        </div>
        <div className="relative flex justify-center text-xs uppercase">
-        <span className="bg-white px-2 text-muted-foreground">Ou</span>
+        <span className="bg-card px-2 text-muted-foreground">Ou</span>
        </div>
       </div>
 
       <div className="space-y-2">
        <Label>Contact Particulier</Label>
-       <select
-        className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
+       <Select
         value={selectedContact}
-        onChange={(e) => {
-         setSelectedContact(e.target.value);
-         if (e.target.value) setSelectedCompany('');
+        onValueChange={(value) => {
+         if (value === '__create_contact__') {
+          router.push('/dashboard/contacts/new');
+          return;
+         }
+         setSelectedContact(value);
+         if (value) setSelectedCompany('');
         }}
        >
-        <option value="">Sélectionner un contact...</option>
-        {contacts.filter((c: any) => !c.companyId).map((c: any) => (
-         <option key={c.id} value={c.id}>{c.firstName} {c.lastName}</option>
-        ))}
-       </select>
+        <SelectTrigger className="w-full">
+         <SelectValue placeholder="Sélectionner un contact..." />
+        </SelectTrigger>
+        <SelectContent>
+         {contacts.filter((c: any) => !c.companyId).map((c: any) => (
+          <SelectItem key={c.id} value={c.id}>
+           {c.firstName} {c.lastName}
+          </SelectItem>
+         ))}
+         <Separator className="my-1" />
+         <SelectItem value="__create_contact__" className="text-primary font-medium">
+          + Créer un contact
+         </SelectItem>
+        </SelectContent>
+       </Select>
       </div>
      </CardContent>
     </Card>
@@ -261,82 +319,102 @@ export default function QuoteForm({ companies, contacts, products }: QuoteFormPr
      <CardHeader>
       <CardTitle>Lignes du devis</CardTitle>
      </CardHeader>
-     <CardContent className="space-y-4">
-      <div className="rounded-lg border overflow-hidden">
-       <table className="w-full text-sm">
-        <thead className="bg-gray-50 border-b">
-         <tr>
-          <th className="px-4 py-2 text-left w-1/3">Description</th>
-          <th className="px-4 py-2 w-24">Qté</th>
-          <th className="px-4 py-2 w-32">Prix U. HT</th>
-          <th className="px-4 py-2 w-20">TVA %</th>
-          <th className="px-4 py-2 w-32 text-right">Total HT</th>
-          <th className="px-4 py-2 w-10"></th>
-         </tr>
-        </thead>
-        <tbody className="divide-y">
-         {items.map((item, index) => (
-          <tr key={index} className="group">
-           <td className="p-2 align-top">
-            <div className="space-y-2">
-             <select
-              className="w-full text-xs text-gray-500 border-none bg-transparent focus:ring-0 mb-1"
-              value={item.productId || ''}
-              onChange={(e) => handleProductSelect(index, e.target.value)}
-             >
-              <option value="">Sélectionner un produit (optionnel)...</option>
-              {products.map((p: any) => (
-               <option key={p.id} value={p.id}>{p.name} - {p.unitPrice / 100}€</option>
-              ))}
-             </select>
-             <Textarea
-              value={item.description}
-              onChange={(e) => updateItem(index, 'description', e.target.value)}
-              placeholder="Description de la prestation..."
-              className="min-h-[60px]"
-             />
-            </div>
-           </td>
-           <td className="p-2 align-top">
-            <Input
-             type="number"
-             min="1"
-             value={item.quantity}
-             onChange={(e) => updateItem(index, 'quantity', parseFloat(e.target.value))}
-            />
-           </td>
-           <td className="p-2 align-top">
-            <Input
-             type="number"
-             min="0"
-             step="0.01"
-             value={item.unitPrice}
-             onChange={(e) => updateItem(index, 'unitPrice', parseFloat(e.target.value))}
-            />
-           </td>
-           <td className="p-2 align-top">
-            <Input
-             type="number"
-             min="0"
-             value={item.vatRate}
-             onChange={(e) => updateItem(index, 'vatRate', parseFloat(e.target.value))}
-            />
-           </td>
-           <td className="p-2 align-top text-right font-medium pt-3">
+     <CardContent className="space-y-4 ">
+      <div className="space-y-3">
+       {items.map((item, index) => (
+        <div key={index} className="rounded-lg border p-4 space-y-3">
+         <div className="flex items-start justify-between gap-2">
+          <div className="flex-1 space-y-2">
+           <Label className="text-primary">Produit (optionnel)</Label>
+           <Select
+            value={item.productId || ''}
+            onValueChange={(value) => {
+             if (value === '__create_product__') {
+              router.push('/dashboard/products/new');
+              return;
+             }
+             handleProductSelect(index, value);
+            }}
+           >
+            <SelectTrigger className="h-9">
+             <SelectValue placeholder="Sélectionner un produit préconfiguré..." />
+            </SelectTrigger>
+            <SelectContent>
+             {products.map((p: any) => (
+              <SelectItem key={p.id} value={p.id}>
+               {p.name} - {(p.unitPrice / 100).toFixed(2)}€
+              </SelectItem>
+             ))}
+             <Separator className="my-1" />
+             <SelectItem value="__create_product__" className="text-primary font-medium">
+              + Créer un produit
+             </SelectItem>
+            </SelectContent>
+           </Select>
+          </div>
+          <button
+           onClick={() => handleRemoveItem(index)}
+           className="text-muted-foreground hover:text-red-600 transition-colors p-1 mt-5"
+           disabled={items.length === 1}
+          >
+           <Trash2 className="w-4 h-4" />
+          </button>
+         </div>
+
+         <div className="space-y-2">
+          <Label className="text-primary">Description</Label>
+          <Textarea
+           value={item.description}
+           onChange={(e) => updateItem(index, 'description', e.target.value)}
+           placeholder="Description détaillée de la prestation..."
+           className="min-h-[80px] resize-none"
+          />
+         </div>
+
+         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="space-y-1.5">
+           <Label className="text-primary">Quantité</Label>
+           <Input
+            type="number"
+            min="1"
+            value={item.quantity}
+            onChange={(e) => updateItem(index, 'quantity', parseFloat(e.target.value))}
+            className="h-9"
+           />
+          </div>
+
+          <div className="space-y-1.5">
+           <Label className="text-primary">Prix U. HT (€)</Label>
+           <Input
+            type="number"
+            min="0"
+            step="0.01"
+            value={item.unitPrice}
+            onChange={(e) => updateItem(index, 'unitPrice', parseFloat(e.target.value))}
+            className="h-9"
+           />
+          </div>
+
+          <div className="space-y-1.5">
+           <Label className="text-primary">TVA (%)</Label>
+           <Input
+            type="number"
+            min="0"
+            value={item.vatRate}
+            onChange={(e) => updateItem(index, 'vatRate', parseFloat(e.target.value))}
+            className="h-9"
+           />
+          </div>
+
+          <div className="space-y-1.5">
+           <Label className="text-primary">Total HT</Label>
+           <div className="h-9 flex items-center justify-end font-semibold text-foreground bg-muted rounded-md px-3 border">
             {(item.quantity * item.unitPrice).toFixed(2)} €
-           </td>
-           <td className="p-2 align-top pt-3">
-            <button
-             onClick={() => handleRemoveItem(index)}
-             className="text-gray-400 hover:text-red-600 transition-colors"
-            >
-             <Trash2 className="w-4 h-4" />
-            </button>
-           </td>
-          </tr>
-         ))}
-        </tbody>
-       </table>
+           </div>
+          </div>
+         </div>
+        </div>
+       ))}
       </div>
 
       <Button variant="outline" onClick={handleAddItem} className="w-full border-dashed">
@@ -346,15 +424,15 @@ export default function QuoteForm({ companies, contacts, products }: QuoteFormPr
 
       <div className="flex justify-end pt-4">
        <div className="w-64 space-y-2">
-        <div className="flex justify-between text-sm text-gray-500">
+        <div className="flex justify-between text-sm text-primary">
          <span>Total HT</span>
          <span>{totals.subtotal.toFixed(2)} €</span>
         </div>
-        <div className="flex justify-between text-sm text-gray-500">
+        <div className="flex justify-between text-sm text-primary">
          <span>TVA</span>
          <span>{totals.vatAmount.toFixed(2)} €</span>
         </div>
-        <div className="flex justify-between font-bold text-lg pt-2 border-t text-gray-900">
+        <div className="flex justify-between font-bold text-lg pt-2 border-t text-primary">
          <span>Total TTC</span>
          <span>{totals.total.toFixed(2)} €</span>
         </div>
@@ -363,6 +441,12 @@ export default function QuoteForm({ companies, contacts, products }: QuoteFormPr
      </CardContent>
     </Card>
    </div>
+   <LimitReachedModal
+    isOpen={showLimitModal}
+    onClose={() => setShowLimitModal(false)}
+    currentPlan={currentPlan}
+    limitType="quotes"
+   />
   </div>
  )
 }

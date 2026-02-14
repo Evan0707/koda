@@ -61,11 +61,11 @@ export default function ImportPage() {
    <div className="flex items-center gap-4 mb-6">
     <Link
      href="/dashboard/contacts"
-     className="p-2 hover:bg-gray-100 rounded-full text-gray-500 transition-colors"
+     className="p-2 hover:bg-muted rounded-full text-muted-foreground transition-colors"
     >
      <ArrowLeft className="w-5 h-5" />
     </Link>
-    <h1 className="text-2xl font-bold text-gray-900">Importer des contacts</h1>
+    <h1 className="text-2xl font-bold text-foreground">Importer des contacts</h1>
    </div>
 
    <Card>
@@ -76,19 +76,19 @@ export default function ImportPage() {
      </CardTitle>
     </CardHeader>
     <CardContent className="space-y-6">
-     <div className="border-2 border-dashed border-gray-200 rounded-lg p-12 text-center hover:bg-gray-50 transition-colors relative">
+     <div className="border-2 border-dashed border-border rounded-lg p-12 text-center hover:bg-muted transition-colors relative">
       <Input
        type="file"
        accept=".csv"
        onChange={handleFileChange}
        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
       />
-      <div className="flex flex-col items-center gap-2 text-gray-500">
-       <FileUp className="w-10 h-10 text-gray-400" />
+      <div className="flex flex-col items-center gap-2 text-muted-foreground">
+       <FileUp className="w-10 h-10 text-muted-foreground/70" />
        <p className="font-medium">
         {file ? file.name : 'Cliquez ou glissez un fichier CSV ici'}
        </p>
-       <p className="text-xs text-gray-400">
+       <p className="text-xs text-muted-foreground">
         Format attendu: Prénom, Nom, Email, Entreprise, Fonction, Tags
        </p>
       </div>
@@ -96,10 +96,10 @@ export default function ImportPage() {
 
      {preview.length > 0 && (
       <div className="space-y-4">
-       <h3 className="font-semibold text-gray-900">Aperçu ({preview.length} premiers)</h3>
+       <h3 className="font-semibold text-foreground">Aperçu ({preview.length} premiers)</h3>
        <div className="rounded-md border overflow-hidden">
         <table className="w-full text-sm">
-         <thead className="bg-gray-50 border-b">
+         <thead className="bg-muted border-b">
           <tr>
            <th className="px-4 py-2 text-left">Prénom</th>
            <th className="px-4 py-2 text-left">Nom</th>
@@ -113,7 +113,7 @@ export default function ImportPage() {
            <tr key={i} className="border-b last:border-0">
             <td className="px-4 py-2">{row.firstName}</td>
             <td className="px-4 py-2">{row.lastName}</td>
-            <td className="px-4 py-2 text-gray-500">{row.email}</td>
+            <td className="px-4 py-2 text-muted-foreground">{row.email}</td>
             <td className="px-4 py-2">{row.companyName}</td>
             <td className="px-4 py-2">{row.tags}</td>
            </tr>
@@ -131,7 +131,7 @@ export default function ImportPage() {
       <Button
        onClick={handleImport}
        disabled={!file || isPending}
-       className="bg-indigo-600 hover:bg-indigo-700"
+       
       >
        {isPending ? (
         <>
@@ -151,10 +151,10 @@ export default function ImportPage() {
 
    <Card>
     <CardHeader>
-     <CardTitle className="text-sm font-medium text-gray-500">Modème CSV</CardTitle>
+     <CardTitle className="text-sm font-medium text-muted-foreground">Modèle CSV</CardTitle>
     </CardHeader>
     <CardContent>
-     <div className="bg-gray-100 p-3 rounded text-xs font-mono text-gray-600 overflow-x-auto">
+     <div className="bg-muted p-3 rounded text-xs font-mono text-muted-foreground overflow-x-auto">
       Prénom,Nom,Email,Téléphone,Entreprise,Fonction,Tags<br />
       Jean,Dupont,jean@exemple.com,0612345678,Acme Corp,CEO,"Client,VIP"<br />
       Marie,Martin,marie@test.com,,StartUp Inc,CTO,Prospect

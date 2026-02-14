@@ -3,6 +3,7 @@ import { db } from '@/db'
 import { users } from '@/db/schema/core'
 import { User } from '@/types/db'
 import { eq } from 'drizzle-orm'
+import { hasPermission, type Permission, type Role } from '@/lib/permissions'
 
 export async function getUser(): Promise<User | null> {
  const supabase = await createClient()
@@ -29,3 +30,23 @@ export async function getOrganizationId(): Promise<string> {
 
  return user.organizationId
 }
+
+/**
+ * Vérifie que l'utilisateur est authentifié ET possède la permission requise.
+ * Retourne l'utilisateur si OK, sinon retourne une erreur.
+ */
+export async function requirePermission(permission: Permission): Promise<{ user: User } | { error: string }> {
+ const user = await getUser()
+
+ if (!user) return { error: 'Non authentifié' }
+ if (!user.organizationId) return { error: 'Aucune organisation liée' }
+
+ const role = (user.role || 'member') as Role
+
+ if (!hasPermission(role, permission)) {
+  return { error: 'Vous n\'avez pas les droits nécessaires pour cette action' }
+ }
+
+ return { user }
+}
+

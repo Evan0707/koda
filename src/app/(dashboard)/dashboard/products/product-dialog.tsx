@@ -97,7 +97,7 @@ export function ProductDialog({ open, onOpenChange, product, onSuccess }: Produc
          placeholder="0.00"
          className="pr-8"
         />
-        <span className="absolute right-3 top-2.5 text-gray-500 text-sm">€</span>
+        <span className="absolute right-3 top-2.5 text-muted-foreground text-sm">€</span>
        </div>
       </div>
 
@@ -144,7 +144,7 @@ export function ProductDialog({ open, onOpenChange, product, onSuccess }: Produc
       <Button
        type="submit"
        disabled={isPending}
-       className="bg-indigo-600 hover:bg-indigo-700"
+       
       >
        {isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
        {product ? 'Enregistrer' : 'Créer'}

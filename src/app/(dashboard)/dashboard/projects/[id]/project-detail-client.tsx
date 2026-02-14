@@ -354,7 +354,7 @@ export default function ProjectDetailClient({
 
     startTransition(async () => {
       const result = await createTask(data)
-      if (result.error) {
+      if ('error' in result) {
         toast.error(result.error)
       } else {
         toast.success('Tâche créée')
@@ -374,7 +374,7 @@ export default function ProjectDetailClient({
       variant: 'destructive',
       onConfirm: async () => {
         const result = await deleteTask(taskId)
-        if (result.error) {
+        if ('error' in result) {
           toast.error(result.error)
         } else {
           toast.success('Tâche supprimée')

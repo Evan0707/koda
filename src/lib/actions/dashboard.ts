@@ -178,27 +178,33 @@ export async function getRevenueChartData() {
  try {
   const organizationId = await getOrganizationId()
 
-  const months = []
   const now = new Date()
+  const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1)
 
+  // Single query with GROUP BY month instead of 6 separate queries
+  const results = await db
+   .select({
+    month: sql<string>`TO_CHAR(${invoices.paidAt}, 'YYYY-MM')`,
+    total: sum(invoices.total),
+   })
+   .from(invoices)
+   .where(and(
+    eq(invoices.organizationId, organizationId),
+    eq(invoices.status, 'paid'),
+    gte(invoices.paidAt, sixMonthsAgo)
+   ))
+   .groupBy(sql`TO_CHAR(${invoices.paidAt}, 'YYYY-MM')`)
+   .orderBy(sql`TO_CHAR(${invoices.paidAt}, 'YYYY-MM')`)
+
+  // Build full 6-month array, filling gaps with 0
+  const months = []
   for (let i = 5; i >= 0; i--) {
    const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
-   const startOfMonth = date
-   const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0)
-
-   const [result] = await db
-    .select({ total: sum(invoices.total) })
-    .from(invoices)
-    .where(and(
-     eq(invoices.organizationId, organizationId),
-     eq(invoices.status, 'paid'),
-     gte(invoices.paidAt, startOfMonth),
-     lte(invoices.paidAt, endOfMonth)
-    ))
-
+   const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+   const found = results.find(r => r.month === key)
    months.push({
     month: date.toLocaleDateString('fr-FR', { month: 'short' }),
-    revenue: Number(result?.total || 0) / 100
+    revenue: Number(found?.total || 0) / 100
    })
   }
 

@@ -2,7 +2,7 @@
 
 import { db } from '@/db'
 import { tasks } from '@/db/schema/projects'
-import { getOrganizationId, getUser } from '@/lib/auth'
+import { getOrganizationId, getUser, requirePermission } from '@/lib/auth'
 import { Task, User } from '@/types/db'
 import { and, asc, desc, eq, isNull } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
@@ -106,6 +106,9 @@ export async function getTask(id: string) {
 // Create task
 export async function createTask(data: TaskFormData) {
  try {
+  const permResult = await requirePermission('manage_projects')
+  if ('error' in permResult) return permResult
+
   const organizationId = await getOrganizationId()
   const user = await getUser()
   const validated = taskSchema.parse(data)
@@ -153,14 +156,24 @@ export async function createTask(data: TaskFormData) {
 // Update task
 export async function updateTask(id: string, data: Partial<TaskFormData>) {
  try {
+  const permResult = await requirePermission('manage_projects')
+  if ('error' in permResult) return permResult
+
   const organizationId = await getOrganizationId()
+
+  // Validate partial data through Zod
+  const validated = taskSchema.partial().safeParse(data)
+  if (!validated.success) {
+   return { error: validated.error.issues[0].message }
+  }
+  const safeData = validated.data
 
   const [task] = await db.update(tasks)
    .set({
-    ...data,
-    assigneeId: data.assigneeId || null,
-    cycleId: data.cycleId || null,
-    dueDate: data.dueDate || null,
+    ...safeData,
+    assigneeId: safeData.assigneeId || null,
+    cycleId: safeData.cycleId || null,
+    dueDate: safeData.dueDate || null,
     updatedAt: new Date(),
    })
    .where(and(
@@ -180,9 +193,16 @@ export async function updateTask(id: string, data: Partial<TaskFormData>) {
  }
 }
 
+// Valid task statuses
+const VALID_TASK_STATUSES = ['todo', 'in_progress', 'review', 'done'] as const
+
 // Update task status (for drag & drop)
 export async function updateTaskStatus(id: string, status: string, newPosition?: number) {
  try {
+  if (!VALID_TASK_STATUSES.includes(status as any)) {
+   return { error: `Statut invalide. Valeurs autorisées : ${VALID_TASK_STATUSES.join(', ')}` }
+  }
+
   const organizationId = await getOrganizationId()
 
   const updateData: any = {
@@ -247,6 +267,9 @@ export async function reorderTasks(taskUpdates: { id: string; position: number; 
 // Delete task (soft delete)
 export async function deleteTask(id: string) {
  try {
+  const permResult = await requirePermission('manage_projects')
+  if ('error' in permResult) return permResult
+
   const organizationId = await getOrganizationId()
 
   const [task] = await db.update(tasks)
