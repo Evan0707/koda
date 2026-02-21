@@ -21,6 +21,20 @@ export async function generateAIContent(prompt: string, context?: string) {
         // Ensure user is authenticated
         await getOrganizationId()
 
+        // Check AI feature access (starter+ only)
+        const { checkFeatureAccess } = await import('./plan-limits')
+        const featureCheck = await checkFeatureAccess('ai_email')
+        if (!featureCheck.hasAccess) {
+            return { success: false, error: featureCheck.error }
+        }
+
+        // Rate limit AI calls
+        const { getRateLimitKey, isRateLimited, rateLimiters } = await import('@/lib/rate-limit')
+        const key = await getRateLimitKey('ai_generate')
+        if (await isRateLimited(key, rateLimiters.standard)) {
+            return { success: false, error: 'Trop de requêtes IA. Veuillez patienter quelques secondes.' }
+        }
+
         const groq = getGroqClient()
 
         const fullPrompt = `

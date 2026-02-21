@@ -2,6 +2,7 @@ import { pgTable, uuid, text, timestamp, jsonb, integer, boolean, date } from 'd
 import { relations } from 'drizzle-orm'
 import { organizations, users } from './core'
 import { companies, contacts } from './crm'
+import { projects } from './projects'
 
 // ============================================
 // PRODUCTS / SERVICES
@@ -107,6 +108,7 @@ export const invoices = pgTable('invoices', {
  companyId: uuid('company_id').references(() => companies.id),
  contactId: uuid('contact_id').references(() => contacts.id),
  quoteId: uuid('quote_id').references(() => quotes.id),
+ projectId: uuid('project_id').references(() => projects.id, { onDelete: 'set null' }),
  createdById: uuid('created_by_id').references(() => users.id),
 
  // Numbering

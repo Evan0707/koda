@@ -11,6 +11,7 @@ import {
  Clock,
  FileSignature,
  Package,
+ Wallet,
 } from 'lucide-react'
 import { NavItem } from './nav-item'
 import Image from 'next/image'
@@ -44,11 +45,13 @@ const navSections = [
    { href: '/dashboard/projects', icon: FolderKanban, label: 'Projets' },
    { href: '/dashboard/products', icon: Package, label: 'Produits' },
    { href: '/dashboard/time', icon: Clock, label: 'Temps' },
+   { href: '/dashboard/expenses', icon: Wallet, label: 'Dépenses' },
   ]
  },
 ]
 
 import { PlanBadge } from './plan-badge'
+import { PLAN_LIMITS } from '@/lib/utils/plan-limits'
 
 type SubscriptionStatus = {
  plan: 'free' | 'starter' | 'pro'
@@ -107,11 +110,11 @@ export function Sidebar({
      {/* Free Plan */}
      {subscriptionStatus.plan === 'free' && (
       <div className="text-xs text-muted-foreground">
-       <p className="mb-2">{subscriptionStatus.monthlyInvoiceCount ?? 0} / 10 factures ce mois</p>
+       <p className="mb-2">{subscriptionStatus.monthlyInvoiceCount ?? 0} / {PLAN_LIMITS.free.maxInvoicesPerMonth} factures ce mois</p>
        <div className="w-full h-1 bg-muted rounded-full overflow-hidden mb-2">
         <div
          className="h-full bg-primary"
-         style={{ width: `${Math.min(((subscriptionStatus.monthlyInvoiceCount ?? 0) / 10) * 100, 100)}%` }}
+         style={{ width: `${Math.min(((subscriptionStatus.monthlyInvoiceCount ?? 0) / PLAN_LIMITS.free.maxInvoicesPerMonth) * 100, 100)}%` }}
         />
        </div>
        <Link href="/dashboard/upgrade" className="text-primary hover:underline">
@@ -123,11 +126,11 @@ export function Sidebar({
      {/* Starter Plan */}
      {subscriptionStatus.plan === 'starter' && (
       <div className="text-xs text-muted-foreground">
-       <p className="mb-2">{subscriptionStatus.monthlyInvoiceCount ?? 0} / 100 factures ce mois</p>
+       <p className="mb-2">{subscriptionStatus.monthlyInvoiceCount ?? 0} / {PLAN_LIMITS.starter.maxInvoicesPerMonth} factures ce mois</p>
        <div className="w-full h-1 bg-muted rounded-full overflow-hidden mb-2">
         <div
          className="h-full bg-blue-500"
-         style={{ width: `${Math.min(((subscriptionStatus.monthlyInvoiceCount ?? 0) / 100) * 100, 100)}%` }}
+         style={{ width: `${Math.min(((subscriptionStatus.monthlyInvoiceCount ?? 0) / PLAN_LIMITS.starter.maxInvoicesPerMonth) * 100, 100)}%` }}
         />
        </div>
        <Link href="/dashboard/upgrade" className="text-primary hover:underline">

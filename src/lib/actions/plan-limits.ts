@@ -3,9 +3,10 @@
 import { createClient } from '@/lib/supabase/server'
 import { db, schema } from '@/db'
 import { eq, sql, and, isNull } from 'drizzle-orm'
-import { getPlanLimits } from '@/lib/utils/plan-limits'
+import { getPlanLimits, hasFeature } from '@/lib/utils/plan-limits'
 import { quotes } from '@/db/schema/billing'
 import { contacts } from '@/db/schema/crm'
+import { projects } from '@/db/schema/projects'
 
 export async function checkInvoiceLimit() {
  const supabase = await createClient()
@@ -194,4 +195,140 @@ export async function checkContactLimit() {
  }
 
  return { canCreate: true, remaining: limits.maxContacts - contactsCount }
+}
+
+// PROJECT LIMITS
+
+export async function checkProjectLimit() {
+ const supabase = await createClient()
+ const { data: { user } } = await supabase.auth.getUser()
+
+ if (!user) return { canCreate: false, error: 'Non authentifié' }
+
+ const userRecord = await db.query.users.findFirst({
+  where: eq(schema.users.id, user.id),
+ })
+
+ if (!userRecord?.organizationId) {
+  return { canCreate: false, error: 'Organisation introuvable' }
+ }
+
+ const org = await db.query.organizations.findFirst({
+  where: eq(schema.organizations.id, userRecord.organizationId),
+ })
+
+ if (!org) return { canCreate: false, error: 'Organisation introuvable' }
+
+ const limits = getPlanLimits(org.plan || 'free')
+
+ if (limits.maxProjects === -1) {
+  return { canCreate: true }
+ }
+
+ const projectsCount = await db.$count(
+  projects,
+  and(
+   eq(projects.organizationId, org.id),
+   isNull(projects.deletedAt)
+  )
+ )
+
+ if (projectsCount >= limits.maxProjects) {
+  return {
+   canCreate: false,
+   error: `Limite de ${limits.maxProjects} projets atteinte.`,
+   upgradeRequired: true,
+   currentPlan: org.plan || 'free',
+  }
+ }
+
+ return { canCreate: true, remaining: limits.maxProjects - projectsCount }
+}
+
+// CONTACT BULK IMPORT CHECK
+
+export async function checkContactBulkLimit(incomingCount: number) {
+ const supabase = await createClient()
+ const { data: { user } } = await supabase.auth.getUser()
+
+ if (!user) return { canImport: false, error: 'Non authentifié' }
+
+ const userRecord = await db.query.users.findFirst({
+  where: eq(schema.users.id, user.id),
+ })
+
+ if (!userRecord?.organizationId) {
+  return { canImport: false, error: 'Organisation introuvable' }
+ }
+
+ const org = await db.query.organizations.findFirst({
+  where: eq(schema.organizations.id, userRecord.organizationId),
+ })
+
+ if (!org) return { canImport: false, error: 'Organisation introuvable' }
+
+ const limits = getPlanLimits(org.plan || 'free')
+
+ if (limits.maxContacts === -1) {
+  return { canImport: true }
+ }
+
+ const currentCount = await db.$count(
+  contacts,
+  and(
+   eq(contacts.organizationId, org.id),
+   isNull(contacts.deletedAt)
+  )
+ )
+
+ const totalAfterImport = currentCount + incomingCount
+
+ if (totalAfterImport > limits.maxContacts) {
+  const remaining = Math.max(0, limits.maxContacts - currentCount)
+  return {
+   canImport: false,
+   error: `Limite de ${limits.maxContacts} contacts atteinte. Vous avez ${currentCount} contacts et tentez d'en importer ${incomingCount}. Il vous reste ${remaining} place${remaining > 1 ? 's' : ''}.`,
+   upgradeRequired: true,
+   currentPlan: org.plan || 'free',
+   remaining,
+  }
+ }
+
+ return { canImport: true }
+}
+
+// FEATURE ACCESS CHECK
+
+export async function checkFeatureAccess(feature: string) {
+ const supabase = await createClient()
+ const { data: { user } } = await supabase.auth.getUser()
+
+ if (!user) return { hasAccess: false, error: 'Non authentifié' }
+
+ const userRecord = await db.query.users.findFirst({
+  where: eq(schema.users.id, user.id),
+ })
+
+ if (!userRecord?.organizationId) {
+  return { hasAccess: false, error: 'Organisation introuvable' }
+ }
+
+ const org = await db.query.organizations.findFirst({
+  where: eq(schema.organizations.id, userRecord.organizationId),
+ })
+
+ if (!org) return { hasAccess: false, error: 'Organisation introuvable' }
+
+ const plan = org.plan || 'free'
+
+ if (!hasFeature(plan, feature)) {
+  return {
+   hasAccess: false,
+   error: `Cette fonctionnalité n'est pas disponible sur votre plan. Passez à un plan supérieur.`,
+   upgradeRequired: true,
+   currentPlan: plan,
+  }
+ }
+
+ return { hasAccess: true }
 }

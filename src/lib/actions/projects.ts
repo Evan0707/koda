@@ -103,6 +103,13 @@ export async function createProject(data: ProjectFormData) {
   const permResult = await requirePermission('manage_projects')
   if ('error' in permResult) return permResult
 
+  // Check project limit
+  const { checkProjectLimit } = await import('./plan-limits')
+  const limitCheck = await checkProjectLimit()
+  if (!limitCheck.canCreate) {
+   return { error: limitCheck.error }
+  }
+
   const organizationId = await getOrganizationId()
   const user = await getUser()
   const validated = projectSchema.parse(data)

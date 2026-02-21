@@ -25,6 +25,25 @@ export const PLAN_LIMITS = {
  },
 } as const
 
+// Pricing display (in euros)
+export const PLAN_PRICING = {
+ starter: {
+  monthly: 19,
+  annual: 15, // per month, billed yearly (180€/an → -21%)
+  annualTotal: 180,
+ },
+ pro: {
+  monthly: 49,
+  annual: 39, // per month, billed yearly (468€/an → -20%)
+  annualTotal: 468,
+ },
+} as const
+
+// Free trial configuration
+export const TRIAL_DAYS = 14
+
+export type BillingPeriod = 'monthly' | 'annual'
+
 export type PlanType = keyof typeof PLAN_LIMITS
 
 export function getPlanLimits(plan: string) {

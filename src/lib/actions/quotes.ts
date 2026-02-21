@@ -12,6 +12,7 @@ import { AUDIT_ACTIONS } from '@/db/schema/audit'
 import { checkQuoteLimit } from '@/lib/actions/plan-limits'
 
 import { quoteSchema, type CreateQuoteInput } from '@/lib/schemas/billing'
+import { notifyUser } from '@/lib/actions/automation'
 
 // Schema imported from @/lib/schemas/billing
 
@@ -180,9 +181,111 @@ export async function updateQuoteStatus(id: string, status: string) {
    metadata: { status }
   })
 
+  // Notify quote creator on signature or rejection
+  if (status === 'accepted' || status === 'rejected') {
+   const quote = await db.query.quotes.findFirst({
+    where: and(eq(quotes.id, id), eq(quotes.organizationId, organizationId)),
+   })
+   if (quote?.createdById) {
+    await notifyUser(quote.createdById, organizationId, {
+     title: status === 'accepted' ? 'Devis signé !' : 'Devis refusé',
+     message: status === 'accepted'
+      ? `Le devis ${quote.number} a été signé par le client.`
+      : `Le devis ${quote.number} a été refusé.`,
+     type: status === 'accepted' ? 'success' : 'warning',
+     link: `/dashboard/quotes/${id}`,
+     resourceType: 'quote',
+     resourceId: id,
+    })
+   }
+  }
+
   return { success: true }
  } catch (error) {
   console.error('Error updating quote status:', error)
   return { error: 'Erreur lors de la mise à jour' }
+ }
+}
+
+// ============================================
+// UPDATE QUOTE (edit content + items)
+// ============================================
+export async function updateQuote(id: string, data: CreateQuoteInput) {
+ try {
+  const auth = await requirePermission('manage_quotes')
+  if ('error' in auth) return { error: auth.error }
+  const organizationId = auth.user.organizationId!
+
+  const validated = quoteSchema.parse(data)
+
+  // Verify quote exists + belongs to org
+  const existing = await db.query.quotes.findFirst({
+   where: and(eq(quotes.id, id), eq(quotes.organizationId, organizationId)),
+  })
+  if (!existing) return { error: 'Devis non trouvé' }
+
+  // Only draft/rejected quotes can be edited
+  if (existing.status !== 'draft' && existing.status !== 'rejected') {
+   return { error: 'Seuls les devis en brouillon ou refusés peuvent être modifiés' }
+  }
+
+  let subtotal = 0
+  let vatAmount = 0
+
+  const itemsToInsert = validated.items.map((item, index) => {
+   const lineTotal = Math.round(item.unitPrice * 100 * item.quantity)
+   const lineVat = Math.round(lineTotal * (item.vatRate / 100))
+   subtotal += lineTotal
+   vatAmount += lineVat
+   return {
+    ...item,
+    unitPrice: Math.round(item.unitPrice * 100),
+    total: lineTotal,
+    position: index,
+    productId: item.productId || null,
+   }
+  })
+
+  const total = subtotal + vatAmount
+
+  await db.transaction(async (tx) => {
+   // Update quote fields
+   await tx.update(quotes).set({
+    title: validated.title,
+    contactId: validated.contactId || null,
+    companyId: validated.companyId || null,
+    currency: validated.currency,
+    issueDate: validated.issueDate || undefined,
+    validUntil: validated.validUntil || undefined,
+    subtotal,
+    vatAmount,
+    total,
+    status: 'draft', // reset to draft on edit
+    updatedAt: new Date(),
+   }).where(eq(quotes.id, id))
+
+   // Delete old items + insert new
+   await tx.delete(quoteItems).where(eq(quoteItems.quoteId, id))
+   if (itemsToInsert.length > 0) {
+    await tx.insert(quoteItems).values(
+     itemsToInsert.map(item => ({ quoteId: id, ...item }))
+    )
+   }
+  })
+
+  revalidatePath('/dashboard/quotes')
+  revalidatePath(`/dashboard/quotes/${id}`)
+
+  await logAudit({
+   action: AUDIT_ACTIONS.QUOTE_UPDATED,
+   entityType: 'quote',
+   entityId: id,
+   metadata: { total: total / 100 },
+  })
+
+  return { success: true }
+ } catch (error) {
+  console.error('Error updating quote:', error)
+  return { error: 'Erreur lors de la modification du devis' }
  }
 }

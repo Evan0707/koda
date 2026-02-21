@@ -211,12 +211,160 @@ export function generateInvoicesFEC(invoices: InvoiceExportData[], companyName: 
 /**
  * Get filename for export
  */
-export function getExportFilename(type: 'csv' | 'fec', startDate?: string, endDate?: string): string {
+export function getExportFilename(type: 'csv' | 'fec', startDate?: string, endDate?: string, prefix: string = 'factures'): string {
  const today = new Date().toISOString().split('T')[0]
  const dateRange = startDate && endDate ? `${startDate}_${endDate}` : today
 
  if (type === 'fec') {
   return `FEC_${dateRange}.txt`
  }
- return `factures_${dateRange}.csv`
+ return `${prefix}_${dateRange}.csv`
+}
+
+// ============================================
+// QUOTE EXPORT
+// ============================================
+export type QuoteExportData = {
+ id: string
+ number: string
+ status: string
+ title: string | null
+ issueDate: string | null
+ validUntil: string | null
+ signedAt: Date | null
+ subtotal: number | null
+ vatAmount: number | null
+ total: number | null
+ currency: string | null
+ contact?: { firstName?: string | null; lastName?: string | null; email?: string | null } | null
+ company?: { name?: string | null } | null
+}
+
+export function generateQuotesCSV(quotes: QuoteExportData[]): string {
+ const headers = [
+  'Numéro',
+  'Titre',
+  'Client',
+  'Email',
+  'Date Émission',
+  'Valide Jusqu\'au',
+  'Date Signature',
+  'Montant HT',
+  'TVA',
+  'Total TTC',
+  'Devise',
+  'Statut',
+ ]
+
+ const rows = quotes.map(q => [
+  escapeCSV(q.number),
+  escapeCSV(q.title),
+  escapeCSV(q.company?.name || `${q.contact?.firstName || ''} ${q.contact?.lastName || ''}`.trim() || 'N/A'),
+  escapeCSV(q.contact?.email || ''),
+  q.issueDate ? new Date(q.issueDate).toLocaleDateString('fr-FR') : '',
+  q.validUntil ? new Date(q.validUntil).toLocaleDateString('fr-FR') : '',
+  q.signedAt ? new Date(q.signedAt).toLocaleDateString('fr-FR') : '',
+  formatAmount(q.subtotal),
+  formatAmount(q.vatAmount),
+  formatAmount(q.total),
+  q.currency || 'EUR',
+  q.status,
+ ])
+
+ return [
+  headers.join(','),
+  ...rows.map(row => row.join(','))
+ ].join('\n')
+}
+
+// ============================================
+// EXPENSE EXPORT
+// ============================================
+export type ExpenseExportData = {
+ id: string
+ description: string | null
+ amount: number | null
+ currency: string | null
+ vatAmount: number | null
+ vatRate: number | null
+ date: string | null
+ status: string | null
+ category?: { name?: string | null } | null
+}
+
+export function generateExpensesCSV(expenses: ExpenseExportData[]): string {
+ const headers = [
+  'Description',
+  'Catégorie',
+  'Date',
+  'Montant HT',
+  'TVA',
+  'Taux TVA (%)',
+  'Devise',
+  'Statut',
+ ]
+
+ const rows = expenses.map(e => [
+  escapeCSV(e.description),
+  escapeCSV(e.category?.name || 'Non catégorisé'),
+  e.date ? new Date(e.date).toLocaleDateString('fr-FR') : '',
+  formatAmount(e.amount),
+  formatAmount(e.vatAmount),
+  String(e.vatRate ?? 20),
+  e.currency || 'EUR',
+  e.status || '',
+ ])
+
+ return [
+  headers.join(','),
+  ...rows.map(row => row.join(','))
+ ].join('\n')
+}
+
+// ============================================
+// TIME ENTRY EXPORT
+// ============================================
+export type TimeEntryExportData = {
+ id: string
+ description: string | null
+ duration: number | null
+ date: string | null
+ isBillable: boolean | null
+ hourlyRate: number | null
+ project?: { name?: string | null } | null
+ task?: { title?: string | null } | null
+}
+
+export function generateTimeEntriesCSV(entries: TimeEntryExportData[]): string {
+ const headers = [
+  'Date',
+  'Projet',
+  'Tâche',
+  'Description',
+  'Durée (heures)',
+  'Facturable',
+  'Taux Horaire (€)',
+  'Montant (€)',
+ ]
+
+ const rows = entries.map(e => {
+  const hours = (e.duration ?? 0) / 60
+  const rate = (e.hourlyRate ?? 0) / 100
+  const amount = hours * rate
+  return [
+   e.date ? new Date(e.date).toLocaleDateString('fr-FR') : '',
+   escapeCSV(e.project?.name || 'Sans projet'),
+   escapeCSV(e.task?.title || ''),
+   escapeCSV(e.description),
+   hours.toFixed(2),
+   e.isBillable ? 'Oui' : 'Non',
+   rate.toFixed(2),
+   amount.toFixed(2),
+  ]
+ })
+
+ return [
+  headers.join(','),
+  ...rows.map(row => row.join(','))
+ ].join('\n')
 }

@@ -20,13 +20,21 @@ async function verifyAndMarkPaid(invoiceId: string, sessionId: string) {
    return // Already paid or not found
   }
 
-  if (!invoice.organization?.stripeSecretKey) {
-   return // No Stripe configured
+  // Determine the correct Stripe key to use
+  // Free plan payments go through the platform account (Connect)
+  // Paid plan payments use the org's own Stripe keys
+  let stripeKey: string
+  if (invoice.organization.plan === 'free' || !invoice.organization.stripeSecretKey) {
+   stripeKey = process.env.STRIPE_SECRET_KEY || ''
+   if (!stripeKey) return // No platform key configured
+  } else {
+   const { safeDecrypt } = await import('@/lib/encryption')
+   stripeKey = safeDecrypt(invoice.organization.stripeSecretKey)
   }
 
   // Verify with Stripe that payment was successful
-  const stripe = new Stripe(invoice.organization.stripeSecretKey, {
-   apiVersion: '2025-03-31.basil' as any,
+  const stripe = new Stripe(stripeKey, {
+   apiVersion: '2025-04-30.basil' as Stripe.LatestApiVersion,
   })
 
   const session = await stripe.checkout.sessions.retrieve(sessionId)

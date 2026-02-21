@@ -3,6 +3,7 @@ import { organizations, users } from './core'
 import { companies, contacts, opportunities, pipelineStages, activities } from './crm'
 import { products, quotes, quoteItems, invoices, invoiceItems, payments } from './billing'
 import { projects, tasks, cycles, timeEntries } from './projects'
+import { contracts } from './legal'
 import { notifications } from './collaboration'
 import { automationRules, automationLogs } from './automation'
 import { auditLogs } from './audit'
@@ -149,6 +150,10 @@ export const invoicesRelations = relations(invoices, ({ one, many }) => ({
   fields: [invoices.quoteId],
   references: [quotes.id],
  }),
+ project: one(projects, {
+  fields: [invoices.projectId],
+  references: [projects.id],
+ }),
  items: many(invoiceItems),
  payments: many(payments),
 }))
@@ -203,6 +208,8 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
  cycles: many(cycles),
  tasks: many(tasks),
  timeEntries: many(timeEntries),
+ invoices: many(invoices),
+ contracts: many(contracts),
 }))
 
 export const cyclesRelations = relations(cycles, ({ one, many }) => ({

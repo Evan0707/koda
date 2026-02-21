@@ -3,6 +3,8 @@ import { organizations, users } from '@/db/schema/core'
 import { companies, contacts, opportunities, activities, pipelineStages } from '@/db/schema/crm'
 import { products, quotes, quoteItems, invoices, invoiceItems, payments } from '@/db/schema/billing'
 import { projects, tasks, cycles, timeEntries } from '@/db/schema/projects'
+import { contracts, contractTemplates } from '@/db/schema/legal'
+import { expenses, expenseCategories } from '@/db/schema/finance'
 
 // Core
 export type Organization = InferSelectModel<typeof organizations>
@@ -28,6 +30,14 @@ export type Project = InferSelectModel<typeof projects>
 export type Task = InferSelectModel<typeof tasks>
 export type Cycle = InferSelectModel<typeof cycles>
 export type TimeEntry = InferSelectModel<typeof timeEntries>
+
+// Legal
+export type Contract = InferSelectModel<typeof contracts>
+export type ContractTemplate = InferSelectModel<typeof contractTemplates>
+
+// Finance
+export type Expense = InferSelectModel<typeof expenses>
+export type ExpenseCategory = InferSelectModel<typeof expenseCategories>
 
 // Composite Types (With Relations)
 export type InvoiceWithDetails = Invoice & {

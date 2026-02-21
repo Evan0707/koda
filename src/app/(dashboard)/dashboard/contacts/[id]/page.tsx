@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
-import { db } from '@/db'
+import { db, schema } from '@/db'
 import { contacts, activities, opportunities, tags, taggables } from '@/db/schema/crm'
-import { eq, desc, and, asc } from 'drizzle-orm'
+import { eq, desc, and, asc, isNull } from 'drizzle-orm'
 import { getOrganizationId } from '@/lib/auth'
 import ContactView from './contact-view'
 
@@ -60,11 +60,33 @@ export default async function ContactPage({ params }: { params: Promise<{ id: st
   tags: assignedTags
  }
 
+ // Fetch linked invoices
+ const contactInvoices = await db.query.invoices.findMany({
+  where: and(
+   eq(schema.invoices.contactId, id),
+   eq(schema.invoices.organizationId, organizationId),
+   isNull(schema.invoices.deletedAt),
+  ),
+  orderBy: [desc(schema.invoices.createdAt)],
+ })
+
+ // Fetch linked quotes
+ const contactQuotes = await db.query.quotes.findMany({
+  where: and(
+   eq(schema.quotes.contactId, id),
+   eq(schema.quotes.organizationId, organizationId),
+   isNull(schema.quotes.deletedAt),
+  ),
+  orderBy: [desc(schema.quotes.createdAt)],
+ })
+
  return (
   <ContactView
    contact={contactWithTags}
    activities={contactActivities}
    opportunities={contactOpportunities}
+   invoices={contactInvoices}
+   quotes={contactQuotes}
   />
  )
 }

@@ -209,20 +209,29 @@ export async function updateStripeSettings(formData: FormData) {
   if (stripePublishableKey && !stripePublishableKey.startsWith('pk_')) {
     return { error: 'La clé publique doit commencer par pk_' }
   }
-  if (stripeSecretKey && !stripeSecretKey.startsWith('sk_')) {
-    return { error: 'La clé secrète doit commencer par sk_' }
+
+  // Only validate/update secret key if a new value starting with sk_ was provided
+  // This prevents re-encrypting masked values or clearing existing keys
+  const hasNewSecretKey = stripeSecretKey && stripeSecretKey.startsWith('sk_')
+  if (stripeSecretKey && !hasNewSecretKey) {
+    // User entered something but it's not a valid key — ignore silently
+    // (could be the masked placeholder value)
   }
 
-  // Encrypt secret key before storing
-  const { safeEncrypt } = await import('@/lib/encryption')
-  const encryptedSecretKey = stripeSecretKey ? safeEncrypt(stripeSecretKey) : null
+  // Build update payload
+  const updateData: Record<string, unknown> = {
+    stripePublishableKey,
+    updatedAt: new Date(),
+  }
+
+  // Only update secret key if user provided a new valid key
+  if (hasNewSecretKey) {
+    const { safeEncrypt } = await import('@/lib/encryption')
+    updateData.stripeSecretKey = safeEncrypt(stripeSecretKey)
+  }
 
   await db.update(schema.organizations)
-    .set({
-      stripePublishableKey,
-      stripeSecretKey: encryptedSecretKey,
-      updatedAt: new Date(),
-    })
+    .set(updateData)
     .where(eq(schema.organizations.id, dbUser.organizationId))
 
   revalidatePath('/dashboard/settings')

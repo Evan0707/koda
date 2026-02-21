@@ -131,7 +131,7 @@ export async function createCheckoutSession(invoiceId: string) {
   const decryptedKey = safeDecrypt(invoice.organization.stripeSecretKey)
 
   const stripe = new Stripe(decryptedKey, {
-   apiVersion: '2025-03-31.basil' as any,
+   apiVersion: '2025-04-30.basil' as Stripe.LatestApiVersion,
   })
 
   const baseUrl = getAppUrl()
@@ -151,7 +151,7 @@ export async function createCheckoutSession(invoiceId: string) {
 
    // Use platform Stripe account to create session with application fee
    const platformStripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-    apiVersion: '2025-03-31.basil' as any,
+    apiVersion: '2025-04-30.basil' as Stripe.LatestApiVersion,
    })
 
    const session = await platformStripe.checkout.sessions.create({
@@ -222,8 +222,12 @@ export async function createCheckoutSession(invoiceId: string) {
  }
 }
 
-// Mark invoice as paid (called by webhook or manually)
+// Mark invoice as paid (called manually by authorized users)
 export async function markInvoiceAsPaid(invoiceId: string, stripeSessionId?: string) {
+ const { requirePermission } = await import('@/lib/auth')
+ const auth = await requirePermission('manage_billing')
+ if ('error' in auth) return { error: auth.error }
+
  try {
   await db.update(schema.invoices)
    .set({

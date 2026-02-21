@@ -7,7 +7,7 @@ import { eq } from 'drizzle-orm'
 import { headers } from 'next/headers'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-03-31.basil' as any,
+  apiVersion: '2025-04-30.basil' as Stripe.LatestApiVersion,
 })
 
 import { requirePermission } from '@/lib/auth'
@@ -92,5 +92,32 @@ export async function getStripeConnectStatus() {
     }
   } catch (error) {
     return { isConnected: false }
+  }
+}
+
+/**
+ * Get Stripe Express dashboard login link for already-connected accounts.
+ */
+export async function getConnectDashboardLink() {
+  const auth = await requirePermission('manage_stripe')
+  if ('error' in auth) return { error: auth.error }
+
+  const { user } = auth
+
+  if (!user.organizationId) return { error: 'Organisation requise' }
+
+  const org = await db.query.organizations.findFirst({
+    where: eq(schema.organizations.id, user.organizationId)
+  })
+
+  if (!org?.stripeAccountId) return { error: 'Compte Stripe Connect non configuré' }
+
+  try {
+    const loginLink = await stripe.accounts.createLoginLink(org.stripeAccountId)
+    return { url: loginLink.url }
+  } catch (error: unknown) {
+    console.error('Stripe Login Link Error:', error)
+    const message = error instanceof Error ? error.message : 'Erreur inconnue'
+    return { error: message || 'Impossible de créer le lien de connexion' }
   }
 }

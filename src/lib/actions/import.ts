@@ -17,6 +17,14 @@ type ImportResult = {
 export async function importContacts(data: CSVContact[]): Promise<ImportResult> {
  try {
   const organizationId = await getOrganizationId()
+
+  // Check contact limit before importing
+  const { checkContactBulkLimit } = await import('./plan-limits')
+  const limitCheck = await checkContactBulkLimit(data.length)
+  if (!limitCheck.canImport) {
+   return { error: limitCheck.error }
+  }
+
   let createdCount = 0
   const errors: string[] = []
 

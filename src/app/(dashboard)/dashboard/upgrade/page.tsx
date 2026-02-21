@@ -18,6 +18,8 @@ export default async function UpgradePage() {
   }
 
   const currentPlan = 'error' in status ? 'free' : (status.plan as 'free' | 'starter' | 'pro')
+  const hasSubscription = 'error' in status ? false : !!status.stripeSubscriptionId
+  const isTrialing = 'error' in status ? false : !!status.isTrialing
 
-  return <UpgradeClient currentPlan={currentPlan} />
+  return <UpgradeClient currentPlan={currentPlan} hasSubscription={hasSubscription} isTrialing={isTrialing} />
 }

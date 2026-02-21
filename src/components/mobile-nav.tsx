@@ -12,6 +12,7 @@ import {
  Clock,
  FileSignature,
  Package,
+ Wallet,
  Menu,
  X,
 } from 'lucide-react'
@@ -47,6 +48,7 @@ const navSections = [
    { href: '/dashboard/projects', icon: FolderKanban, label: 'Projets' },
    { href: '/dashboard/products', icon: Package, label: 'Produits' },
    { href: '/dashboard/time', icon: Clock, label: 'Temps' },
+   { href: '/dashboard/expenses', icon: Wallet, label: 'Dépenses' },
   ]
  },
 ]

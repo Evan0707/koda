@@ -60,6 +60,11 @@ export const AUDIT_ACTIONS = {
  CONTRACT_DELETED: 'contract.deleted',
  CONTRACT_SIGNED: 'contract.signed',
 
+ // Expenses
+ EXPENSE_CREATED: 'expense.created',
+ EXPENSE_UPDATED: 'expense.updated',
+ EXPENSE_DELETED: 'expense.deleted',
+
  // Settings
  PROFILE_UPDATED: 'settings.profile_updated',
  PASSWORD_CHANGED: 'settings.password_changed',

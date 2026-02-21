@@ -16,7 +16,7 @@ import { StatusBadge, type StatusConfig } from '@/components/status-badge'
 import { FilterSelect } from '@/components/filter-select'
 import { EmptyState } from '@/components/empty-state'
 import { formatPrice } from '@/lib/currency'
-import { Plus, FileText, ArrowRight } from 'lucide-react'
+import { Plus, FileText, ArrowRight, Download } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
@@ -65,12 +65,20 @@ export default function QuotesClient({ initialQuotes }: { initialQuotes: any[] }
         description="Gérez vos propositions commerciales"
         icon={FileText}
         actions={
-          <Link href="/dashboard/quotes/create">
-            <Button className="bg-primary hover:bg-primary/90">
-              <Plus className="w-4 h-4 mr-2" />
-              Nouveau devis
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <a href="/api/export/quotes" download>
+              <Button variant="outline" size="sm">
+                <Download className="w-4 h-4 mr-2" />
+                Exporter CSV
+              </Button>
+            </a>
+            <Link href="/dashboard/quotes/create">
+              <Button className="bg-primary hover:bg-primary/90">
+                <Plus className="w-4 h-4 mr-2" />
+                Nouveau devis
+              </Button>
+            </Link>
+          </div>
         }
       />
 

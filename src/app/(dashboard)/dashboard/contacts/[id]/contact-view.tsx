@@ -13,7 +13,10 @@ import {
  Trash2,
  Euro,
  Calendar,
- ArrowLeft
+ ArrowLeft,
+ Receipt,
+ FileText,
+ TrendingUp,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -32,13 +35,17 @@ import { useConfirm } from '@/components/confirm-dialog'
 import { deleteContact } from '@/lib/actions/contacts'
 import { toast } from 'sonner'
 
+import { formatPrice } from '@/lib/currency'
+
 type ContactViewProps = {
  contact: any // Typed properly in page
  activities: any[]
  opportunities: any[]
+ invoices?: any[]
+ quotes?: any[]
 }
 
-export default function ContactView({ contact, activities, opportunities }: ContactViewProps) {
+export default function ContactView({ contact, activities, opportunities, invoices = [], quotes = [] }: ContactViewProps) {
  const { confirm } = useConfirm()
  const router = useRouter()
 
@@ -250,6 +257,82 @@ export default function ContactView({ contact, activities, opportunities }: Cont
        )}
       </div>
      </div>
+
+     {/* Billing Summary */}
+     {(invoices.length > 0 || quotes.length > 0) && (
+      <div className="bg-card rounded-xl border border-border shadow-sm p-6">
+       <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+        <TrendingUp className="w-4 h-4" />
+        Facturation
+       </h3>
+
+       {/* Revenue summary */}
+       <div className="grid grid-cols-2 gap-3 mb-4">
+        <div className="p-3 bg-green-50 dark:bg-green-900/10 rounded-lg text-center">
+         <p className="text-xs text-muted-foreground">Encaissé</p>
+         <p className="font-bold text-green-700 dark:text-green-400">
+          {formatPrice(invoices.filter((i: any) => i.status === 'paid').reduce((s: number, i: any) => s + (i.total || 0), 0))}
+         </p>
+        </div>
+        <div className="p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg text-center">
+         <p className="text-xs text-muted-foreground">Facturé</p>
+         <p className="font-bold text-blue-700 dark:text-blue-400">
+          {formatPrice(invoices.reduce((s: number, i: any) => s + (i.total || 0), 0))}
+         </p>
+        </div>
+       </div>
+
+       {/* Recent invoices */}
+       {invoices.length > 0 && (
+        <div className="mb-3">
+         <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
+          <Receipt className="w-3 h-3" />
+          Factures ({invoices.length})
+         </p>
+         <div className="space-y-1.5">
+          {invoices.slice(0, 3).map((inv: any) => (
+           <Link
+            key={inv.id}
+            href={`/dashboard/invoices/${inv.id}`}
+            className="flex items-center justify-between p-2 rounded border text-sm hover:bg-muted/50 transition-colors"
+           >
+            <span className="font-mono text-xs">{inv.number}</span>
+            <span className="font-medium">{formatPrice(inv.total)}</span>
+           </Link>
+          ))}
+          {invoices.length > 3 && (
+           <p className="text-xs text-muted-foreground text-center">+{invoices.length - 3} autres</p>
+          )}
+         </div>
+        </div>
+       )}
+
+       {/* Recent quotes */}
+       {quotes.length > 0 && (
+        <div>
+         <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
+          <FileText className="w-3 h-3" />
+          Devis ({quotes.length})
+         </p>
+         <div className="space-y-1.5">
+          {quotes.slice(0, 3).map((q: any) => (
+           <Link
+            key={q.id}
+            href={`/dashboard/quotes/${q.id}`}
+            className="flex items-center justify-between p-2 rounded border text-sm hover:bg-muted/50 transition-colors"
+           >
+            <span className="font-mono text-xs">{q.number}</span>
+            <span className="font-medium">{formatPrice(q.total)}</span>
+           </Link>
+          ))}
+          {quotes.length > 3 && (
+           <p className="text-xs text-muted-foreground text-center">+{quotes.length - 3} autres</p>
+          )}
+         </div>
+        </div>
+       )}
+      </div>
+     )}
     </div>
    </div>
   </div>

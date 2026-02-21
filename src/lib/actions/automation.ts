@@ -105,3 +105,32 @@ export async function createNotification(userId: string, organizationId: string,
   return { error: 'Failed' }
  }
 }
+
+// ============================================
+// INTERNAL NOTIFY HELPER (no extra auth check)
+// For use inside already-authenticated server actions.
+// ============================================
+export async function notifyUser(userId: string, organizationId: string, data: {
+ title: string
+ message?: string
+ type?: 'info' | 'success' | 'warning' | 'error'
+ link?: string
+ resourceType?: string
+ resourceId?: string
+}) {
+ try {
+  await db.insert(schema.notifications).values({
+   userId,
+   organizationId,
+   title: data.title,
+   body: data.message,
+   type: data.type || 'info',
+   link: data.link,
+   resourceType: data.resourceType,
+   resourceId: data.resourceId,
+  })
+ } catch (error) {
+  // Non-blocking — don't break the parent action
+  console.error('Failed to create notification:', error)
+ }
+}

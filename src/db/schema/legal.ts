@@ -2,6 +2,7 @@ import { pgTable, uuid, text, timestamp, jsonb, integer } from 'drizzle-orm/pg-c
 import { relations } from 'drizzle-orm'
 import { organizations, users } from './core'
 import { companies, contacts } from './crm'
+import { projects } from './projects'
 
 // ============================================
 // CONTRACT TEMPLATES
@@ -33,6 +34,7 @@ export const contracts = pgTable('contracts', {
  companyId: uuid('company_id').references(() => companies.id),
  contactId: uuid('contact_id').references(() => contacts.id),
  createdById: uuid('created_by_id').references(() => users.id),
+ projectId: uuid('project_id').references(() => projects.id, { onDelete: 'set null' }),
 
  title: text('title').notNull(),
  content: text('content').notNull(),
@@ -80,5 +82,9 @@ export const contractsRelations = relations(contracts, ({ one }) => ({
  createdBy: one(users, {
   fields: [contracts.createdById],
   references: [users.id],
+ }),
+ project: one(projects, {
+  fields: [contracts.projectId],
+  references: [projects.id],
  }),
 }))

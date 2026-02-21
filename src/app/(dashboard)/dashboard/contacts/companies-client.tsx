@@ -24,6 +24,7 @@ import {
  MapPin,
  Users,
  Loader2,
+ Eye,
 } from 'lucide-react'
 import {
  DropdownMenu,
@@ -33,6 +34,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { getCompanies, createCompany, updateCompany, deleteCompany } from '@/lib/actions/companies'
 import { useConfirm } from '@/components/confirm-dialog'
+import Link from 'next/link'
 
 type Company = {
  id: string
@@ -271,6 +273,12 @@ export default function CompaniesClient() {
            </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+           <DropdownMenuItem asChild>
+            <Link href={`/dashboard/contacts/companies/${company.id}`}>
+             <Eye className="w-4 h-4 mr-2" />
+             Voir la fiche
+            </Link>
+           </DropdownMenuItem>
            <DropdownMenuItem
             onClick={() => openEdit(company)}
            >

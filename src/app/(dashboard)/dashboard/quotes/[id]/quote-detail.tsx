@@ -131,6 +131,15 @@ export default function QuoteDetail({ quote }: QuoteDetailProps) {
                         </Button>
                     )}
 
+                    {(quote.status === 'draft' || quote.status === 'rejected') && (
+                        <Link href={`/dashboard/quotes/${quote.id}/edit`}>
+                            <Button variant="outline">
+                                <Pen className="w-4 h-4 mr-2" />
+                                Modifier
+                            </Button>
+                        </Link>
+                    )}
+
                     {quote.status === 'draft' && (
                         <Button
                             variant="default"

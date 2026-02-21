@@ -14,11 +14,12 @@ const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 export default function CheckoutPage() {
  const searchParams = useSearchParams()
  const plan = searchParams?.get('plan') as 'starter' | 'pro'
+ const billing = (searchParams?.get('billing') as 'monthly' | 'annual') || 'monthly'
  const [clientSecret, setClientSecret] = useState<string | null>(null)
 
  useEffect(() => {
   if (plan) {
-   createSubscriptionCheckout(plan)
+   createSubscriptionCheckout(plan, billing)
     .then((data) => {
      if (data.clientSecret) {
       setClientSecret(data.clientSecret)
@@ -27,7 +28,7 @@ export default function CheckoutPage() {
      }
     })
   }
- }, [plan])
+ }, [plan, billing])
 
  if (!plan) {
   return <div>Plan invalide.</div>

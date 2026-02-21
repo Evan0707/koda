@@ -75,9 +75,15 @@ export default function InvoicesClient({ initialInvoices }: { initialInvoices: a
               FEC
             </Button>
             <Link href="/dashboard/quotes">
-              <Button>
+              <Button variant="outline">
                 <Plus className="w-4 h-4 mr-2" />
                 Créer depuis devis
+              </Button>
+            </Link>
+            <Link href="/dashboard/invoices/create">
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Nouvelle facture
               </Button>
             </Link>
           </>
@@ -104,10 +110,10 @@ export default function InvoicesClient({ initialInvoices }: { initialInvoices: a
             icon={FileText}
             title={invoices.length === 0 ? 'Aucune facture' : 'Aucun résultat'}
             description={invoices.length === 0
-              ? 'Convertissez un devis pour créer votre première facture.'
+              ? 'Créez votre première facture ou convertissez un devis.'
               : 'Aucune facture ne correspond à vos critères.'}
             action={invoices.length === 0
-              ? { label: 'Aller aux devis', href: '/dashboard/quotes' }
+              ? { label: 'Nouvelle facture', href: '/dashboard/invoices/create' }
               : undefined}
             secondaryAction={invoices.length > 0 && (statusFilter !== 'all' || search)
               ? { label: 'Réinitialiser les filtres', onClick: () => { setSearch(''); setStatusFilter('all') } }

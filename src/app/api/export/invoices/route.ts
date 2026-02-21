@@ -3,9 +3,15 @@ import { db, schema } from '@/db'
 import { getOrganizationId } from '@/lib/auth'
 import { generateInvoicesCSV, generateInvoicesFEC, getExportFilename, InvoiceExportData } from '@/lib/exports'
 import { eq, and, gte, lte, desc } from 'drizzle-orm'
+import { isRateLimited, getRateLimitKey, rateLimiters } from '@/lib/rate-limit'
 
 export async function GET(request: NextRequest) {
  try {
+  const rateLimitKey = await getRateLimitKey('export:invoices')
+  if (await isRateLimited(rateLimitKey, rateLimiters.standard)) {
+   return NextResponse.json({ error: 'Trop de requêtes. Réessayez dans un instant.' }, { status: 429 })
+  }
+
   const organizationId = await getOrganizationId()
 
   const { searchParams } = new URL(request.url)
