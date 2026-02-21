@@ -10,14 +10,16 @@ import { eq } from 'drizzle-orm'
 
 export const runtime = 'nodejs'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2025-04-30.basil' as Stripe.LatestApiVersion,
-})
+function getStripe() {
+  return new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    apiVersion: '2025-04-30.basil' as Stripe.LatestApiVersion,
+  })
+}
 
 function verifyWebhook(body: string, signature: string): Stripe.Event {
   const secret = process.env.STRIPE_WEBHOOK_SECRET
   if (!secret) throw new Error('STRIPE_WEBHOOK_SECRET not configured')
-  return stripe.webhooks.constructEvent(body, signature, secret)
+  return getStripe().webhooks.constructEvent(body, signature, secret)
 }
 
 export async function POST(request: NextRequest) {
