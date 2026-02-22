@@ -125,12 +125,11 @@ export async function createSubscriptionCheckout(plan: 'starter' | 'pro', billin
   })
   const isEligibleForTrial = !previousSubscription
 
-  // Create checkout session
+  // Create checkout session — payment methods are configured in Stripe Dashboard
   const session = await getStripe().checkout.sessions.create({
     customer: customerId,
     mode: 'subscription',
     ui_mode: 'embedded',
-    payment_method_types: ['link'],
     line_items: [{
       price: priceId,
       quantity: 1,
