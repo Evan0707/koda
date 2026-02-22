@@ -7,9 +7,11 @@ import { eq } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { getAppUrl } from '@/lib/utils'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2025-04-30.basil' as Stripe.LatestApiVersion,
-})
+function getStripe() {
+  return new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    apiVersion: '2025-04-30.basil' as Stripe.LatestApiVersion,
+  })
+}
 
 import { requirePermission } from '@/lib/auth'
 
@@ -62,7 +64,7 @@ export async function createSubscriptionCheckout(plan: 'starter' | 'pro', billin
   let customerId = org.stripeCustomerId
 
   if (!customerId) {
-    const customer = await stripe.customers.create({
+    const customer = await getStripe().customers.create({
       email: user.email,
       name: org.name,
       metadata: {
@@ -77,13 +79,13 @@ export async function createSubscriptionCheckout(plan: 'starter' | 'pro', billin
   } else {
     // Verify customer still exists in Stripe
     try {
-      await stripe.customers.retrieve(customerId)
+      await getStripe().customers.retrieve(customerId)
     } catch (error: unknown) {
       // Check for resource_missing error code safely
       // Stripe errors have a code property, but we must cast safely
       const stripeError = error as { code?: string }
       if (stripeError?.code === 'resource_missing') {
-        const customer = await stripe.customers.create({
+        const customer = await getStripe().customers.create({
           email: user.email,
           name: org.name,
           metadata: {
@@ -124,7 +126,7 @@ export async function createSubscriptionCheckout(plan: 'starter' | 'pro', billin
   const isEligibleForTrial = !previousSubscription
 
   // Create checkout session
-  const session = await stripe.checkout.sessions.create({
+  const session = await getStripe().checkout.sessions.create({
     customer: customerId,
     mode: 'subscription',
     ui_mode: 'embedded',
@@ -176,7 +178,7 @@ export async function cancelSubscription() {
 
   try {
     // Cancel at period end (not immediately)
-    await stripe.subscriptions.update(org.stripeSubscriptionId, {
+    await getStripe().subscriptions.update(org.stripeSubscriptionId, {
       cancel_at_period_end: true,
     })
   } catch (error) {
@@ -220,7 +222,7 @@ export async function getSubscriptionStatus() {
   let stripeSubValid = true
   if (org.stripeSubscriptionId) {
     try {
-      const sub = await stripe.subscriptions.retrieve(org.stripeSubscriptionId)
+      const sub = await getStripe().subscriptions.retrieve(org.stripeSubscriptionId)
       cancelAtPeriodEnd = sub.cancel_at_period_end
       isTrialing = sub.status === 'trialing'
       trialEnd = sub.trial_end ? new Date(sub.trial_end * 1000) : null
@@ -290,7 +292,7 @@ export async function resumeSubscription() {
   }
 
   try {
-    await stripe.subscriptions.update(org.stripeSubscriptionId, {
+    await getStripe().subscriptions.update(org.stripeSubscriptionId, {
       cancel_at_period_end: false,
     })
 
@@ -334,7 +336,7 @@ export async function createCustomerPortalSession() {
     return { error: 'Aucun client Stripe associé' }
   }
 
-  const session = await stripe.billingPortal.sessions.create({
+  const session = await getStripe().billingPortal.sessions.create({
     customer: org.stripeCustomerId,
     return_url: `${getAppUrl()}/dashboard/settings?tab=billing`,
   })
@@ -388,7 +390,7 @@ export async function changePlan(newPlan: 'starter' | 'pro') {
 
   try {
     // Retrieve current subscription to get the item ID
-    const subscription = await stripe.subscriptions.retrieve(org.stripeSubscriptionId)
+    const subscription = await getStripe().subscriptions.retrieve(org.stripeSubscriptionId)
 
     if (!subscription || subscription.status === 'canceled') {
       return { error: 'Abonnement non trouvé ou annulé' }
@@ -408,7 +410,7 @@ export async function changePlan(newPlan: 'starter' | 'pro') {
     const isUpgrade = (org.plan === 'starter' && newPlan === 'pro') ||
                       (org.plan === 'free' && (newPlan === 'starter' || newPlan === 'pro'))
 
-    await stripe.subscriptions.update(org.stripeSubscriptionId, {
+    await getStripe().subscriptions.update(org.stripeSubscriptionId, {
       items: [{
         id: subscriptionItemId,
         price: priceToUse,

@@ -150,7 +150,7 @@ export async function createCheckoutSession(invoiceId: string) {
    }
 
    // Use platform Stripe account to create session with application fee
-   const platformStripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+   const platformStripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
     apiVersion: '2025-04-30.basil' as Stripe.LatestApiVersion,
    })
 

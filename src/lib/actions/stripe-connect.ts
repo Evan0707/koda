@@ -6,9 +6,11 @@ import { db, schema } from '@/db'
 import { eq } from 'drizzle-orm'
 import { headers } from 'next/headers'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-04-30.basil' as Stripe.LatestApiVersion,
-})
+function getStripe() {
+  return new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    apiVersion: '2025-04-30.basil' as Stripe.LatestApiVersion,
+  })
+}
 
 import { requirePermission } from '@/lib/auth'
 
@@ -30,7 +32,7 @@ export async function createConnectAccount() {
     let accountId = org.stripeAccountId
 
     if (!accountId) {
-      const account = await stripe.accounts.create({
+      const account = await getStripe().accounts.create({
         type: 'express',
         email: user.email,
         country: 'FR', // Defaulting to FR, could be dynamic
@@ -52,7 +54,7 @@ export async function createConnectAccount() {
     const headersList = await headers()
     const origin = headersList.get('origin') || process.env.NEXT_PUBLIC_APP_URL
 
-    const accountLink = await stripe.accountLinks.create({
+    const accountLink = await getStripe().accountLinks.create({
       account: accountId,
       refresh_url: `${origin}/dashboard/settings?tab=payments`,
       return_url: `${origin}/dashboard/settings?tab=payments&success=true`,
@@ -83,7 +85,7 @@ export async function getStripeConnectStatus() {
   if (!org?.stripeAccountId) return { isConnected: false }
 
   try {
-    const account = await stripe.accounts.retrieve(org.stripeAccountId)
+    const account = await getStripe().accounts.retrieve(org.stripeAccountId)
     return {
       isConnected: account.details_submitted,
       chargesEnabled: account.charges_enabled,
@@ -113,7 +115,7 @@ export async function getConnectDashboardLink() {
   if (!org?.stripeAccountId) return { error: 'Compte Stripe Connect non configuré' }
 
   try {
-    const loginLink = await stripe.accounts.createLoginLink(org.stripeAccountId)
+    const loginLink = await getStripe().accounts.createLoginLink(org.stripeAccountId)
     return { url: loginLink.url }
   } catch (error: unknown) {
     console.error('Stripe Login Link Error:', error)
