@@ -252,12 +252,12 @@ export default function PipelineClient() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Select value={filterCompany} onValueChange={setFilterCompany}>
+          <Select value={filterCompany || '__all__'} onValueChange={(v) => setFilterCompany(v === '__all__' ? '' : v)}>
             <SelectTrigger className="h-9 min-w-[180px]">
               <SelectValue placeholder="Toutes entreprises" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Toutes entreprises</SelectItem>
+              <SelectItem value="__all__">Toutes entreprises</SelectItem>
               {companies.map((company) => (
                 <SelectItem key={company.id} value={company.id}>
                   {company.name}

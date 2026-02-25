@@ -98,17 +98,17 @@ export function OpportunityDialog({
                 id="companyId-hidden"
               />
               <Select
-                defaultValue={editingOpportunity?.company_id || ''}
+                defaultValue={editingOpportunity?.company_id || '__none__'}
                 onValueChange={(val) => {
                   const hidden = document.getElementById('companyId-hidden') as HTMLInputElement
-                  if (hidden) hidden.value = val
+                  if (hidden) hidden.value = val === '__none__' ? '' : val
                 }}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Aucune" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Aucune</SelectItem>
+                  <SelectItem value="__none__">Aucune</SelectItem>
                   {companies.map((company) => (
                     <SelectItem key={company.id} value={company.id}>
                       {company.name}
