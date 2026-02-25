@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useTransition } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Table,
@@ -16,9 +16,12 @@ import { StatusBadge, type StatusConfig } from '@/components/status-badge'
 import { FilterSelect } from '@/components/filter-select'
 import { EmptyState } from '@/components/empty-state'
 import { formatPrice } from '@/lib/currency'
-import { Plus, FileText, ArrowRight, Download } from 'lucide-react'
+import { Plus, FileText, ArrowRight, Download, Trash2, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
+import { archiveQuote } from '@/lib/actions/quotes'
+import { useConfirm } from '@/components/confirm-dialog'
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'Tous les statuts' },
@@ -30,10 +33,13 @@ const STATUS_OPTIONS = [
 ]
 
 export default function QuotesClient({ initialQuotes }: { initialQuotes: any[] }) {
-  const [quotes] = useState(initialQuotes)
+  const [quotes, setQuotes] = useState(initialQuotes)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [archivingId, setArchivingId] = useState<string | null>(null)
+  const [, startTransition] = useTransition()
   const router = useRouter()
+  const { confirm } = useConfirm()
 
   // Filter quotes client-side
   const filteredQuotes = useMemo(() => {
@@ -56,6 +62,29 @@ export default function QuotesClient({ initialQuotes }: { initialQuotes: any[] }
     accepted: { label: 'Accepté', variant: 'green' },
     rejected: { label: 'Refusé', variant: 'red' },
     expired: { label: 'Expiré', variant: 'orange' },
+  }
+
+  const handleArchive = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation()
+    confirm({
+      title: 'Archiver ce devis ?',
+      description: 'Ce devis sera archivé et supprimé définitivement après 30 jours.',
+      confirmText: 'Archiver',
+      variant: 'destructive',
+      onConfirm: async () => {
+        setArchivingId(id)
+        startTransition(async () => {
+          const result = await archiveQuote(id)
+          setArchivingId(null)
+          if (result.error) {
+            toast.error(result.error)
+          } else {
+            toast.success('Devis archivé')
+            setQuotes(prev => prev.filter(q => q.id !== id))
+          }
+        })
+      }
+    })
   }
 
   return (
@@ -119,7 +148,7 @@ export default function QuotesClient({ initialQuotes }: { initialQuotes: any[] }
                 <TableHead>Date</TableHead>
                 <TableHead>Montant TTC</TableHead>
                 <TableHead>Statut</TableHead>
-                <TableHead className="w-10"></TableHead>
+                <TableHead className="w-20"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -140,7 +169,20 @@ export default function QuotesClient({ initialQuotes }: { initialQuotes: any[] }
                   </TableCell>
                   <TableCell>{<StatusBadge status={quote.status} statusConfig={QUOTE_STATUSES} />}</TableCell>
                   <TableCell>
-                    <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        onClick={(e) => handleArchive(e, quote.id)}
+                        disabled={archivingId === quote.id}
+                      >
+                        {archivingId === quote.id
+                          ? <Loader2 className="w-4 h-4 animate-spin" />
+                          : <Trash2 className="w-4 h-4" />}
+                      </Button>
+                      <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

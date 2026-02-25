@@ -3,6 +3,13 @@
 import { useState, useEffect, useTransition } from 'react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { toast } from 'sonner'
 import { AlertCircle } from 'lucide-react'
 import {
@@ -245,18 +252,19 @@ export default function PipelineClient() {
         </div>
 
         <div className="flex items-center gap-3">
-          <select
-            value={filterCompany}
-            onChange={(e) => setFilterCompany(e.target.value)}
-            className="h-9 px-3 rounded-md border border-input bg-background text-sm"
-          >
-            <option value="">Toutes entreprises</option>
-            {companies.map((company) => (
-              <option key={company.id} value={company.id}>
-                {company.name}
-              </option>
-            ))}
-          </select>
+          <Select value={filterCompany} onValueChange={setFilterCompany}>
+            <SelectTrigger className="h-9 min-w-[180px]">
+              <SelectValue placeholder="Toutes entreprises" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Toutes entreprises</SelectItem>
+              {companies.map((company) => (
+                <SelectItem key={company.id} value={company.id}>
+                  {company.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
           <Button
             variant={filterOverdue ? 'default' : 'outline'}

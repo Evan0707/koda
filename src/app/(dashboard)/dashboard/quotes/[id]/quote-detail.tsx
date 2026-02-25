@@ -14,6 +14,7 @@ import {
     Link2,
     Copy,
     Pen,
+    CreditCard,
 } from 'lucide-react'
 import { AIEmailDialog } from '@/components/ai-email-dialog'
 import Link from 'next/link'
@@ -26,9 +27,10 @@ import { LimitReachedModal } from '@/components/limit-reached-modal'
 
 interface QuoteDetailProps {
     quote: any
+    organization?: any
 }
 
-export default function QuoteDetail({ quote }: QuoteDetailProps) {
+export default function QuoteDetail({ quote, organization }: QuoteDetailProps) {
     const router = useRouter()
     const [isPending, startTransition] = useTransition()
 
@@ -175,6 +177,19 @@ export default function QuoteDetail({ quote }: QuoteDetailProps) {
                         </>
                     )}
 
+                    {(quote.status === 'sent' || quote.status === 'accepted' || quote.status === 'signed') && (
+                        <Button
+                            variant="outline"
+                            className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 hover:bg-green-100"
+                            onClick={() => {
+                                toast.info('Un lien de paiement Stripe sera généré et envoyé au client.')
+                            }}
+                        >
+                            <CreditCard className="w-4 h-4 mr-2" />
+                            Payer
+                        </Button>
+                    )}
+
                     {(quote.status === 'accepted' || quote.status === 'signed') && (
                         <Button
                             variant="default"
@@ -194,16 +209,20 @@ export default function QuoteDetail({ quote }: QuoteDetailProps) {
                 {/* Header */}
                 <div className="flex justify-between items-start mb-12">
                     <div>
-                        {/* Logo Placeholder */}
+                        {/* Logo / Org Name */}
                         <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center mb-4">
-                            <span className="text-primary-foreground font-bold text-xl">K</span>
+                            <span className="text-primary-foreground font-bold text-xl">
+                                {organization?.name?.[0]?.toUpperCase() || 'K'}
+                            </span>
                         </div>
-                        <h2 className="text-lg font-bold text-foreground">KodaFlow</h2>
+                        <h2 className="text-lg font-bold text-foreground">{organization?.name || 'Mon Entreprise'}</h2>
                         <div className="text-sm text-muted-foreground mt-1">
-                            <p>123 Avenue de l'Innovation</p>
-                            <p>75011 Paris, France</p>
-                            <p>contact@kodaflow.com</p>
-                            <p>SIRET: 123 456 789 00012</p>
+                            {organization?.address && <p>{organization.address}</p>}
+                            {(organization?.postalCode || organization?.city) && (
+                                <p>{[organization.postalCode, organization.city].filter(Boolean).join(' ')}</p>
+                            )}
+                            {organization?.country && organization.country !== 'FR' && <p>{organization.country}</p>}
+                            {organization?.siret && <p>SIRET : {organization.siret}</p>}
                         </div>
                     </div>
 

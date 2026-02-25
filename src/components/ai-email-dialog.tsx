@@ -17,6 +17,7 @@ import { Wand2, Copy, Loader2, Send, Mail, Settings } from 'lucide-react'
 import { toast } from 'sonner'
 import { generateEmailForQuote, generateEmailForInvoice } from '@/lib/actions/ai'
 import { sendInvoiceEmail, sendQuoteEmail, getGmailStatus } from '@/lib/actions/email'
+import { LimitReachedModal } from '@/components/limit-reached-modal'
 import Link from 'next/link'
 
 interface AIEmailDialogProps {
@@ -33,6 +34,8 @@ export function AIEmailDialog({ type, id, trigger }: AIEmailDialogProps) {
  const [subject, setSubject] = useState(type === 'quote' ? 'Votre devis' : 'Votre facture')
  const [gmailConnected, setGmailConnected] = useState(false)
  const [gmailEmail, setGmailEmail] = useState<string | null>(null)
+ const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+ const [upgradePlan, setUpgradePlan] = useState('free')
 
  // Check Gmail status on mount
  useEffect(() => {
@@ -62,6 +65,10 @@ export function AIEmailDialog({ type, id, trigger }: AIEmailDialogProps) {
      setContent(result.content)
     }
     toast.success('Email généré par l\'IA')
+   } else if ((result as any).upgradeRequired) {
+    // Free plan: show upsell modal instead of toast
+    setUpgradePlan((result as any).currentPlan || 'free')
+    setShowUpgradeModal(true)
    } else {
     toast.error((result as any).error || "Erreur lors de la génération")
    }
@@ -113,115 +120,124 @@ export function AIEmailDialog({ type, id, trigger }: AIEmailDialogProps) {
  }
 
  return (
-  <Dialog open={isOpen} onOpenChange={setIsOpen}>
-   <DialogTrigger asChild>
-    {trigger || (
-     <Button variant="outline" size="sm">
-      <Send className="w-4 h-4 mr-2" />
-      Envoyer par Email
-     </Button>
-    )}
-   </DialogTrigger>
-   <DialogContent className="sm:max-w-[600px]">
-    <DialogHeader>
-     <DialogTitle>Envoyer par email</DialogTitle>
-     <DialogDescription>
-      Rédigez votre email ou utilisez l'IA pour générer un brouillon.
-     </DialogDescription>
-    </DialogHeader>
-
-    <div className="space-y-4 py-4">
-     {/* Subject Field */}
-     <div className="space-y-2">
-      <Label htmlFor="subject">Objet</Label>
-      <Input
-       id="subject"
-       value={subject}
-       onChange={(e) => setSubject(e.target.value)}
-       placeholder="Objet de l'email"
-      />
-     </div>
-
-     {/* Content Field */}
-     <div className="space-y-2">
-      <div className="flex items-center justify-between">
-       <Label>Message</Label>
-       <Button
-        variant="ghost"
-        size="sm"
-        onClick={handleGenerateAI}
-        disabled={isGenerating}
-        className="text-primary hover:text-primary/80 hover:bg-primary/10"
-       >
-        {isGenerating ? (
-         <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-        ) : (
-         <Wand2 className="w-4 h-4 mr-1" />
-        )}
-        Générer avec IA
-       </Button>
-      </div>
-      <Textarea
-       value={content}
-       onChange={(e) => setContent(e.target.value)}
-       className="min-h-[200px] leading-relaxed"
-       placeholder="Bonjour,&#10;&#10;Veuillez trouver ci-joint...&#10;&#10;Cordialement,"
-      />
-     </div>
-
-     {/* Gmail status indicator */}
-     {gmailConnected ? (
-      <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg text-sm">
-       <Mail className="w-4 h-4 text-green-600 dark:text-green-400" />
-       <span className="text-green-700 dark:text-green-300">
-        Gmail connecté : <strong>{gmailEmail}</strong>
-       </span>
-      </div>
-     ) : (
-      <div className="flex items-center justify-between gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg text-sm">
-       <div className="flex items-center gap-2">
-        <Settings className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-        <span className="text-amber-700 dark:text-amber-300">Gmail non connecté</span>
-       </div>
-       <Button asChild variant="outline" size="sm">
-        <Link href="/dashboard/settings?tab=integrations">Connecter</Link>
-       </Button>
-      </div>
-     )}
-
-     {/* Actions */}
-     <div className="flex justify-end gap-2 pt-2">
-      <Button variant="outline" onClick={handleCopy}>
-       <Copy className="w-4 h-4 mr-2" />
-       Copier
+  <>
+   <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <DialogTrigger asChild>
+     {trigger || (
+      <Button variant="outline" size="sm">
+       <Send className="w-4 h-4 mr-2" />
+       Envoyer par Email
       </Button>
+     )}
+    </DialogTrigger>
+    <DialogContent className="sm:max-w-[600px]">
+     <DialogHeader>
+      <DialogTitle>Envoyer par email</DialogTitle>
+      <DialogDescription>
+       Rédigez votre email ou utilisez l&apos;IA pour générer un brouillon.
+      </DialogDescription>
+     </DialogHeader>
+
+     <div className="space-y-4 py-4">
+      {/* Subject Field */}
+      <div className="space-y-2">
+       <Label htmlFor="subject">Objet</Label>
+       <Input
+        id="subject"
+        value={subject}
+        onChange={(e) => setSubject(e.target.value)}
+        placeholder="Objet de l'email"
+       />
+      </div>
+
+      {/* Content Field */}
+      <div className="space-y-2">
+       <div className="flex items-center justify-between">
+        <Label>Message</Label>
+        <Button
+         variant="ghost"
+         size="sm"
+         onClick={handleGenerateAI}
+         disabled={isGenerating}
+         className="text-primary hover:text-primary/80 hover:bg-primary/10"
+        >
+         {isGenerating ? (
+          <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+         ) : (
+          <Wand2 className="w-4 h-4 mr-1" />
+         )}
+         Générer avec IA
+        </Button>
+       </div>
+       <Textarea
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        className="min-h-[200px] leading-relaxed"
+        placeholder={`Bonjour,\n\nVeuillez trouver ci-joint...\n\nCordialement,`}
+       />
+      </div>
+
+      {/* Gmail status indicator */}
       {gmailConnected ? (
-       <Button
-        
-        onClick={handleSendViaGmail}
-        disabled={isSending || !content.trim()}
-       >
-        {isSending ? (
-         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-        ) : (
-         <Send className="w-4 h-4 mr-2" />
-        )}
-        Envoyer
-       </Button>
+       <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg text-sm">
+        <Mail className="w-4 h-4 text-green-600 dark:text-green-400" />
+        <span className="text-green-700 dark:text-green-300">
+         Gmail connecté : <strong>{gmailEmail}</strong>
+        </span>
+       </div>
       ) : (
-       <Button
-        variant="outline"
-        onClick={() => {
-         window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(content)}`
-        }}
-       >
-        <Send className="w-4 h-4 mr-2" />
-        Ouvrir Client Mail
-       </Button>
+       <div className="flex items-center justify-between gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg text-sm">
+        <div className="flex items-center gap-2">
+         <Settings className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+         <span className="text-amber-700 dark:text-amber-300">Gmail non connecté</span>
+        </div>
+        <Button asChild variant="outline" size="sm">
+         <Link href="/dashboard/settings?tab=integrations">Connecter</Link>
+        </Button>
+       </div>
       )}
+
+      {/* Actions */}
+      <div className="flex justify-end gap-2 pt-2">
+       <Button variant="outline" onClick={handleCopy}>
+        <Copy className="w-4 h-4 mr-2" />
+        Copier
+       </Button>
+       {gmailConnected ? (
+        <Button
+         onClick={handleSendViaGmail}
+         disabled={isSending || !content.trim()}
+        >
+         {isSending ? (
+          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+         ) : (
+          <Send className="w-4 h-4 mr-2" />
+         )}
+         Envoyer
+        </Button>
+       ) : (
+        <Button
+         variant="outline"
+         onClick={() => {
+          window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(content)}`
+         }}
+        >
+         <Send className="w-4 h-4 mr-2" />
+         Ouvrir Client Mail
+        </Button>
+       )}
+      </div>
      </div>
-    </div>
-   </DialogContent>
-  </Dialog>
+    </DialogContent>
+   </Dialog>
+
+   {/* Upsell Modal for free plan */}
+   <LimitReachedModal
+    isOpen={showUpgradeModal}
+    onClose={() => setShowUpgradeModal(false)}
+    currentPlan={upgradePlan}
+    limitType="ai"
+   />
+  </>
  )
 }

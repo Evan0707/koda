@@ -4,7 +4,7 @@ import { db } from '@/db'
 import { quotes, quoteItems } from '@/db/schema/billing'
 import { getOrganizationId, getUser, requirePermission } from '@/lib/auth'
 import { QuoteWithDetails } from '@/types/db'
-import { and, desc, eq, ilike, or } from 'drizzle-orm'
+import { and, desc, eq, ilike, isNull, or } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { logAudit } from '@/lib/audit'
@@ -22,7 +22,10 @@ export async function getQuotes(query?: string) {
  try {
   const organizationId = await getOrganizationId()
 
-  const conditions = [eq(quotes.organizationId, organizationId)]
+  const conditions = [
+   eq(quotes.organizationId, organizationId),
+   isNull(quotes.deletedAt), // Exclude archived/deleted
+  ]
 
   if (query) {
    conditions.push(or(
@@ -44,6 +47,32 @@ export async function getQuotes(query?: string) {
  } catch (error) {
   console.error('Error fetching quotes:', error)
   return { error: 'Erreur lors de la récupération des devis' }
+ }
+}
+
+export async function archiveQuote(id: string) {
+ try {
+  const auth = await requirePermission('manage_quotes')
+  if ('error' in auth) return { error: auth.error }
+  const organizationId = auth.user.organizationId!
+
+  await db.update(quotes)
+   .set({ deletedAt: new Date(), updatedAt: new Date() })
+   .where(and(eq(quotes.id, id), eq(quotes.organizationId, organizationId)))
+
+  revalidatePath('/dashboard/quotes')
+
+  await logAudit({
+   action: AUDIT_ACTIONS.QUOTE_UPDATED,
+   entityType: 'quote',
+   entityId: id,
+   metadata: { archived: true }
+  })
+
+  return { success: true }
+ } catch (error) {
+  console.error('Error archiving quote:', error)
+  return { error: 'Erreur lors de l\'archivage du devis' }
  }
 }
 

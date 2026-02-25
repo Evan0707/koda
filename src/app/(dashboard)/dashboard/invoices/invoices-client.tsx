@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useTransition } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Table,
@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Plus, FileText, ArrowRight, Download } from 'lucide-react'
+import { Plus, FileText, ArrowRight, Download, Trash2, Loader2 } from 'lucide-react'
 import { PageHeader } from '@/components/page-header'
 import { SearchInput } from '@/components/search-input'
 import { StatusBadge, type StatusConfig } from '@/components/status-badge'
@@ -19,6 +19,9 @@ import { EmptyState } from '@/components/empty-state'
 import { formatPrice } from '@/lib/currency'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
+import { archiveInvoice } from '@/lib/actions/invoices'
+import { useConfirm } from '@/components/confirm-dialog'
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'Tous les statuts' },
@@ -30,10 +33,13 @@ const STATUS_OPTIONS = [
 ]
 
 export default function InvoicesClient({ initialInvoices }: { initialInvoices: any[] }) {
-  const [invoices] = useState(initialInvoices)
+  const [invoices, setInvoices] = useState(initialInvoices)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [archivingId, setArchivingId] = useState<string | null>(null)
+  const [, startTransition] = useTransition()
   const router = useRouter()
+  const { confirm } = useConfirm()
 
   // Filter invoices client-side
   const filteredInvoices = useMemo(() => {
@@ -56,6 +62,29 @@ export default function InvoicesClient({ initialInvoices }: { initialInvoices: a
     paid: { label: 'Payée', variant: 'green' },
     overdue: { label: 'En retard', variant: 'red' },
     cancelled: { label: 'Annulée', variant: 'muted' },
+  }
+
+  const handleArchive = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation()
+    confirm({
+      title: 'Archiver cette facture ?',
+      description: 'Cette facture sera archivée et supprimée définitivement après 30 jours.',
+      confirmText: 'Archiver',
+      variant: 'destructive',
+      onConfirm: async () => {
+        setArchivingId(id)
+        startTransition(async () => {
+          const result = await archiveInvoice(id)
+          setArchivingId(null)
+          if (result.error) {
+            toast.error(result.error)
+          } else {
+            toast.success('Facture archivée')
+            setInvoices(prev => prev.filter(inv => inv.id !== id))
+          }
+        })
+      }
+    })
   }
 
   return (
@@ -125,11 +154,11 @@ export default function InvoicesClient({ initialInvoices }: { initialInvoices: a
               <TableRow>
                 <TableHead>Numéro</TableHead>
                 <TableHead>Client</TableHead>
-                <TableHead className="hidden md:table-cell">Date d'émission</TableHead>
+                <TableHead className="hidden md:table-cell">Date d&apos;émission</TableHead>
                 <TableHead className="hidden md:table-cell">Échéance</TableHead>
                 <TableHead>Montant TTC</TableHead>
                 <TableHead>Statut</TableHead>
-                <TableHead className="w-10"></TableHead>
+                <TableHead className="w-20"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -153,7 +182,20 @@ export default function InvoicesClient({ initialInvoices }: { initialInvoices: a
                   </TableCell>
                   <TableCell>{<StatusBadge status={invoice.status} statusConfig={INVOICE_STATUSES} />}</TableCell>
                   <TableCell>
-                    <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        onClick={(e) => handleArchive(e, invoice.id)}
+                        disabled={archivingId === invoice.id}
+                      >
+                        {archivingId === invoice.id
+                          ? <Loader2 className="w-4 h-4 animate-spin" />
+                          : <Trash2 className="w-4 h-4" />}
+                      </Button>
+                      <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

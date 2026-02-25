@@ -9,6 +9,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Plus, Loader2 } from 'lucide-react'
 import type { Stage, Opportunity, Company } from './pipeline-types'
@@ -83,18 +90,32 @@ export function OpportunityDialog({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Entreprise</Label>
-              <select
+              {/* Hidden input to submit companyId via form */}
+              <input
+                type="hidden"
                 name="companyId"
+                value={editingOpportunity?.company_id || ''}
+                id="companyId-hidden"
+              />
+              <Select
                 defaultValue={editingOpportunity?.company_id || ''}
-                className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
+                onValueChange={(val) => {
+                  const hidden = document.getElementById('companyId-hidden') as HTMLInputElement
+                  if (hidden) hidden.value = val
+                }}
               >
-                <option value="">Aucune</option>
-                {companies.map((company) => (
-                  <option key={company.id} value={company.id}>
-                    {company.name}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Aucune" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Aucune</SelectItem>
+                  {companies.map((company) => (
+                    <SelectItem key={company.id} value={company.id}>
+                      {company.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>Date de clôture prévue</Label>
@@ -107,18 +128,27 @@ export function OpportunityDialog({
           </div>
           <div className="space-y-2">
             <Label>Étape</Label>
-            <select
+            <Select
+              value={selectedStageId || editingOpportunity?.stage_id || stages[0]?.id || ''}
+              onValueChange={onSelectedStageChange}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Sélectionner une étape" />
+              </SelectTrigger>
+              <SelectContent>
+                {stages.map((stage) => (
+                  <SelectItem key={stage.id} value={stage.id}>
+                    {stage.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {/* Hidden input for stageId */}
+            <input
+              type="hidden"
               name="stageId"
               value={selectedStageId || editingOpportunity?.stage_id || stages[0]?.id || ''}
-              onChange={(e) => onSelectedStageChange(e.target.value)}
-              className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
-            >
-              {stages.map((stage) => (
-                <option key={stage.id} value={stage.id}>
-                  {stage.name}
-                </option>
-              ))}
-            </select>
+            />
           </div>
           <div className="flex justify-end gap-3 pt-4">
             <Button

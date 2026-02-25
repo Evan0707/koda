@@ -25,7 +25,7 @@ export async function generateAIContent(prompt: string, context?: string) {
         const { checkFeatureAccess } = await import('./plan-limits')
         const featureCheck = await checkFeatureAccess('ai_email')
         if (!featureCheck.hasAccess) {
-            return { success: false, error: featureCheck.error }
+            return { success: false, error: featureCheck.error, upgradeRequired: true, currentPlan: 'free' }
         }
 
         // Rate limit AI calls

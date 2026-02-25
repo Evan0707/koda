@@ -7,7 +7,7 @@ import { invoices, invoiceItems, quotes, quoteItems } from '@/db/schema/billing'
 import { timeEntries, projects } from '@/db/schema/projects'
 import { getOrganizationId, getUser, requirePermission } from '@/lib/auth'
 import { InvoiceWithDetails } from '@/types/db'
-import { and, desc, eq, ilike, or, sql, gte, lte } from 'drizzle-orm'
+import { and, desc, eq, ilike, isNull, or, sql, gte, lte } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { logAudit } from '@/lib/audit'
 import { AUDIT_ACTIONS } from '@/db/schema/audit'
@@ -19,7 +19,10 @@ export async function getInvoices(query?: string) {
   try {
     const organizationId = await getOrganizationId()
 
-    const conditions = [eq(invoices.organizationId, organizationId)]
+    const conditions = [
+      eq(invoices.organizationId, organizationId),
+      isNull(invoices.deletedAt), // Exclude archived/deleted
+    ]
 
     if (query) {
       conditions.push(or(
@@ -41,6 +44,32 @@ export async function getInvoices(query?: string) {
   } catch (error) {
     console.error('Error fetching invoices:', error)
     return { error: 'Erreur lors de la récupération des factures' }
+  }
+}
+
+export async function archiveInvoice(id: string) {
+  try {
+    const auth = await requirePermission('manage_invoices')
+    if ('error' in auth) return { error: auth.error }
+    const organizationId = auth.user.organizationId!
+
+    await db.update(invoices)
+      .set({ deletedAt: new Date(), updatedAt: new Date() })
+      .where(and(eq(invoices.id, id), eq(invoices.organizationId, organizationId)))
+
+    revalidatePath('/dashboard/invoices')
+
+    await logAudit({
+      action: AUDIT_ACTIONS.INVOICE_UPDATED,
+      entityType: 'invoice',
+      entityId: id,
+      metadata: { archived: true }
+    })
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error archiving invoice:', error)
+    return { error: 'Erreur lors de l\'archivage de la facture' }
   }
 }
 
