@@ -12,6 +12,7 @@ import {
   FolderKanban,
   Download,
 } from 'lucide-react'
+import { PageHeader } from '@/components/page-header'
 import {
   createTimeEntry,
   deleteTimeEntry,
@@ -185,55 +186,56 @@ export default function TimeTrackingClient({
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Suivi du temps</h1>
-          <p className="text-muted-foreground">Enregistrez et suivez vos heures de travail</p>
-        </div>
+      <div className="mb-6">
+        <PageHeader
+          title="Suivi du temps"
+          description="Enregistrez et suivez vos heures de travail"
+          icon={Clock}
+          actions={
+            <>
+              <a href="/api/export/time" download>
+                <Button variant="outline" size="sm">
+                  <Download className="w-4 h-4 mr-2" />
+                  Exporter CSV
+                </Button>
+              </a>
 
-        <div className="flex items-center gap-3">
-          <a href="/api/export/time" download>
-            <Button variant="outline" size="sm">
-              <Download className="w-4 h-4 mr-2" />
-              Exporter CSV
-            </Button>
-          </a>
+              {timer ? (
+                <Button
+                  onClick={handleStopTimer}
+                  disabled={isPending}
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  <Square className="w-4 h-4 mr-2" />
+                  {formatTimer(timerSeconds)}
+                </Button>
+              ) : (
+                <TimerStartDialog
+                  isOpen={isTimerDialogOpen}
+                  onOpenChange={setIsTimerDialogOpen}
+                  projects={projects}
+                  isPending={isPending}
+                  onSubmit={handleStartTimer}
+                />
+              )}
 
-          {timer ? (
-            <Button
-              onClick={handleStopTimer}
-              disabled={isPending}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              <Square className="w-4 h-4 mr-2" />
-              {formatTimer(timerSeconds)}
-            </Button>
-          ) : (
-            <TimerStartDialog
-              isOpen={isTimerDialogOpen}
-              onOpenChange={setIsTimerDialogOpen}
-              projects={projects}
-              isPending={isPending}
-              onSubmit={handleStartTimer}
-            />
-          )}
+              <ManualEntryDialog
+                isOpen={isDialogOpen}
+                onOpenChange={setIsDialogOpen}
+                projects={projects}
+                isPending={isPending}
+                onSubmit={handleCreateEntry}
+              />
 
-          <ManualEntryDialog
-            isOpen={isDialogOpen}
-            onOpenChange={setIsDialogOpen}
-            projects={projects}
-            isPending={isPending}
-            onSubmit={handleCreateEntry}
-          />
-
-          <TimeInvoiceDialog
-            isOpen={isInvoiceDialogOpen}
-            onOpenChange={setIsInvoiceDialogOpen}
-            projects={projects}
-            isPending={isPending}
-            onSubmit={handleCreateInvoiceFromTime}
-          />
-        </div>
+              <TimeInvoiceDialog
+                isOpen={isInvoiceDialogOpen}
+                onOpenChange={setIsInvoiceDialogOpen}
+                projects={projects}
+                isPending={isPending}
+                onSubmit={handleCreateInvoiceFromTime}
+              />
+            </>
+          } />
       </div>
 
       {/* Active Timer Banner */}

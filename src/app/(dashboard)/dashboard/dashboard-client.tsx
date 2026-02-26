@@ -15,8 +15,9 @@ import {
   sortableKeyboardCoordinates,
   rectSortingStrategy
 } from '@dnd-kit/sortable'
-import { Plus } from 'lucide-react'
+import { Plus, LayoutDashboard } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { PageHeader } from '@/components/page-header'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
@@ -98,28 +99,29 @@ export default function DashboardClient({
   return (
     <div className="animate-fade-in">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground mt-1">
-            Bienvenue sur votre tableau de bord
-          </p>
-        </div>
-        <div className="flex items-center gap-4">
-          <CustomizeDialog
-            layout={layout}
-            addWidget={addWidget}
-            removeWidget={removeWidget}
-            resetLayout={resetLayout}
-          />
-          <CalendarDateRangePicker date={defaultDate} onDateChange={onDateChange} />
-          <Link href="/dashboard/quotes">
-            <Button className="bg-primary hover:bg-primary/90">
-              <Plus className="w-4 h-4 mr-2" />
-              Nouveau devis
-            </Button>
-          </Link>
-        </div>
+      <div className="mb-8">
+        <PageHeader
+          title="Dashboard"
+          description="Bienvenue sur votre tableau de bord"
+          icon={LayoutDashboard}
+          actions={
+            <>
+              <CustomizeDialog
+                layout={layout}
+                addWidget={addWidget}
+                removeWidget={removeWidget}
+                resetLayout={resetLayout}
+              />
+              <CalendarDateRangePicker date={defaultDate} onDateChange={onDateChange} />
+              <Link href="/dashboard/quotes">
+                <Button className="bg-primary hover:bg-primary/90">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nouveau devis
+                </Button>
+              </Link>
+            </>
+          }
+        />
       </div>
 
       {/* Drag & Drop Grid */}

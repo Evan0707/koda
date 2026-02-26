@@ -11,7 +11,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { AlertCircle } from 'lucide-react'
+import { AlertCircle, Target } from 'lucide-react'
+import { PageHeader } from '@/components/page-header'
 import {
   DndContext,
   DragOverlay,
@@ -243,57 +244,57 @@ export default function PipelineClient() {
   return (
     <div className="h-full flex flex-col animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Pipeline</h1>
-          <p className="text-muted-foreground">
-            {formatPrice(totalPipelineValue, 'EUR', { compact: true })} <span className="text-muted-foreground/70"> {formatPrice(weightedPipelineValue, 'EUR', { compact: true })} pondéré</span>
-          </p>
-        </div>
+      <div className="mb-4">
+        <PageHeader
+          title="Pipeline"
+          icon={Target}
+          description={`${formatPrice(totalPipelineValue, 'EUR', { compact: true })} (${formatPrice(weightedPipelineValue, 'EUR', { compact: true })} pondéré)`}
+          actions={
+            <>
+              <Select value={filterCompany || '__all__'} onValueChange={(v) => setFilterCompany(v === '__all__' ? '' : v)}>
+                <SelectTrigger className="h-9 min-w-[180px]">
+                  <SelectValue placeholder="Toutes entreprises" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Toutes entreprises</SelectItem>
+                  {companies.map((company) => (
+                    <SelectItem key={company.id} value={company.id}>
+                      {company.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-        <div className="flex items-center gap-3">
-          <Select value={filterCompany || '__all__'} onValueChange={(v) => setFilterCompany(v === '__all__' ? '' : v)}>
-            <SelectTrigger className="h-9 min-w-[180px]">
-              <SelectValue placeholder="Toutes entreprises" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">Toutes entreprises</SelectItem>
-              {companies.map((company) => (
-                <SelectItem key={company.id} value={company.id}>
-                  {company.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Button
-            variant={filterOverdue ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setFilterOverdue(!filterOverdue)}
-            className={filterOverdue ? 'bg-destructive hover:bg-destructive/90 text-destructive-foreground' : ''}
-          >
-            <AlertCircle className="w-4 h-4 mr-1" />
-            En retard
-          </Button>
-          <PipelineSettings stages={stages} onUpdate={loadData} />
-          <OpportunityDialog
-            isOpen={isDialogOpen}
-            onOpenChange={(open) => {
-              setIsDialogOpen(open)
-              if (!open) {
-                setEditingOpportunity(null)
-                setSelectedStageId(null)
-              }
-            }}
-            editingOpportunity={editingOpportunity}
-            selectedStageId={selectedStageId}
-            onSelectedStageChange={setSelectedStageId}
-            stages={stages}
-            companies={companies}
-            isPending={isPending}
-            onSubmit={handleSubmit}
-          />
-        </div>
+              <Button
+                variant={filterOverdue ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilterOverdue(!filterOverdue)}
+                className={filterOverdue ? 'bg-destructive hover:bg-destructive/90 text-destructive-foreground' : ''}
+              >
+                <AlertCircle className="w-4 h-4 mr-1" />
+                En retard
+              </Button>
+              <PipelineSettings stages={stages} onUpdate={loadData} />
+              <OpportunityDialog
+                isOpen={isDialogOpen}
+                onOpenChange={(open) => {
+                  setIsDialogOpen(open)
+                  if (!open) {
+                    setEditingOpportunity(null)
+                    setSelectedStageId(null)
+                  }
+                }}
+                editingOpportunity={editingOpportunity}
+                selectedStageId={selectedStageId}
+                onSelectedStageChange={setSelectedStageId}
+                stages={stages}
+                companies={companies}
+                isPending={isPending}
+                onSubmit={handleSubmit}
+              />
+            </>
+          }
+        />
       </div>
 
       {/* Kanban Board */}

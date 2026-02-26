@@ -31,7 +31,7 @@ export function TimerStartDialog({
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
-        <Button className="bg-green-600 hover:bg-green-700">
+        <Button>
           <Play className="w-4 h-4 mr-2" />
           Démarrer timer
         </Button>
@@ -64,7 +64,7 @@ export function TimerStartDialog({
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
               Annuler
             </Button>
-            <Button type="submit" disabled={isPending} className="bg-green-600 hover:bg-green-700">
+            <Button type="submit" disabled={isPending}>
               {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Démarrer'}
             </Button>
           </div>

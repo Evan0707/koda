@@ -300,7 +300,7 @@ export default function ContactsClient() {
   return (
     <div className="space-y-6 animate-fade-in">
       <PageHeader
-        title="CRM"
+        title="Contacts"
         description="Gérez vos contacts et entreprises"
         icon={Users}
         actions={
@@ -338,8 +338,7 @@ export default function ContactsClient() {
             <SearchInput
               value={search}
               onChange={setSearch}
-              placeholder="Rechercher un contact..."
-              className="min-w-[200px] max-w-none"
+              className="min-w-[200px]"
             />
             <Select value={companyFilter} onValueChange={setCompanyFilter}>
               <SelectTrigger className="w-[180px]">

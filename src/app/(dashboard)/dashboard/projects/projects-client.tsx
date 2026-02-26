@@ -340,7 +340,6 @@ export default function ProjectsClient({ initialProjects }: { initialProjects: P
      value={search}
      onChange={setSearch}
      placeholder="Rechercher un projet..."
-     className="max-w-none"
     />
     <FilterSelect
      value={statusFilter}

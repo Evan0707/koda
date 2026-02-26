@@ -12,6 +12,7 @@ import {
  FileSignature,
  Package,
  Wallet,
+  Trash2,
 } from 'lucide-react'
 import { NavItem } from './nav-item'
 import Image from 'next/image'
