@@ -48,12 +48,25 @@ export function TagInput({
  const [availableTags, setAvailableTags] = React.useState<Tag[]>(initialTags)
  const [selectedTags, setSelectedTags] = React.useState<Tag[]>(assignedTags)
  const [isPending, setIsPending] = React.useState(false)
+ const [selectedColor, setSelectedColor] = React.useState('#6366f1')
+
+ const COLORS = [
+  '#ef4444', // red
+  '#f97316', // orange
+  '#eab308', // yellow
+  '#22c55e', // green
+  '#06b6d4', // cyan
+  '#3b82f6', // blue
+  '#6366f1', // indigo
+  '#d946ef', // fuchsia
+  '#64748b', // slate
+ ]
 
  const handleCreateTag = async () => {
   if (!inputValue.trim()) return
 
   setIsPending(true)
-  const result = await createTag(inputValue.trim())
+  const result = await createTag(inputValue.trim(), selectedColor)
 
   if ('error' in result) {
    toast.error(result.error)
@@ -140,13 +153,30 @@ export function TagInput({
       <CommandList>
        <CommandEmpty className="py-2 px-2 text-sm text-muted-foreground">
         {!isPending && inputValue && !exactMatch ? (
-         <button
-          className="w-full text-left p-2 hover:bg-muted rounded-md flex items-center gap-2 text-primary"
-          onClick={handleCreateTag}
-         >
-          <Plus className="w-4 h-4" />
-          Créer "{inputValue}"
-         </button>
+         <div className="space-y-3 p-1">
+          <button
+           className="w-full text-left p-2 hover:bg-muted rounded-md flex items-center gap-2 text-primary"
+           onClick={handleCreateTag}
+          >
+           <Plus className="w-4 h-4" />
+           Créer "{inputValue}"
+          </button>
+          <div className="flex flex-wrap gap-2 px-2 pb-2">
+           {COLORS.map(color => (
+            <button
+             key={color}
+             type="button"
+             title={color}
+             className={cn(
+              "w-5 h-5 rounded-full border-2 transition-transform",
+              selectedColor === color ? "border-foreground scale-110" : "border-transparent hover:scale-110"
+             )}
+             style={{ backgroundColor: color }}
+             onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedColor(color); }}
+            />
+           ))}
+          </div>
+         </div>
         ) : (
          <span>Aucun tag trouvé.</span>
         )}

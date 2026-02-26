@@ -179,12 +179,17 @@ export async function getContacts(search?: string) {
     const data = await db.query.contacts.findMany({
       where: and(...conditions),
       with: {
-        company: true
+        company: true,
+        taggables: {
+          with: {
+            tag: true
+          }
+        }
       },
       orderBy: (contacts, { asc }) => [asc(contacts.firstName)]
     })
 
-    return { contacts: data as (Contact & { company: Company | null })[] }
+    return { contacts: data as unknown as (Contact & { company: Company | null, taggables: { tag: any }[] })[] }
   } catch (error) {
     console.error('Error fetching contacts:', error)
     return { error: 'Erreur lors du chargement', contacts: [] }
@@ -203,12 +208,17 @@ export async function getContact(id: string) {
         isNull(contacts.deletedAt)
       ),
       with: {
-        company: true
+        company: true,
+        taggables: {
+          with: {
+            tag: true
+          }
+        }
       }
     })
 
     if (!contact) return { error: 'Contact non trouvé' }
-    return { contact: contact as (Contact & { company: Company | null }) }
+    return { contact: contact as unknown as (Contact & { company: Company | null, taggables: { tag: any }[] }) }
   } catch (error) {
     console.error('Error fetching contact:', error)
     return { error: 'Erreur lors du chargement' }

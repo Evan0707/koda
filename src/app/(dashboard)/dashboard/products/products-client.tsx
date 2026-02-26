@@ -1,15 +1,7 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
-import {
- Table,
- TableBody,
- TableCell,
- TableHead,
- TableHeader,
- TableRow,
-} from '@/components/ui/table'
 import {
  DropdownMenu,
  DropdownMenuContent,
@@ -31,9 +23,22 @@ import { deleteProduct, getProducts } from '@/lib/actions/products'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { useConfirm } from '@/components/confirm-dialog'
+import { DataTable } from '@/components/ui/data-table'
+import { ColumnDef } from '@tanstack/react-table'
 
 interface ProductsClientProps {
  initialProducts: Product[]
+}
+
+const getUnitLabel = (unit: string | null) => {
+ switch (unit) {
+  case 'day': return 'Jour'
+  case 'hour': return 'Heure'
+  case 'fixed': return 'Forfait'
+  case 'month': return 'Mois'
+  case 'year': return 'An'
+  default: return 'Pièce'
+ }
 }
 
 export default function ProductsClient({ initialProducts }: ProductsClientProps) {
@@ -41,9 +46,13 @@ export default function ProductsClient({ initialProducts }: ProductsClientProps)
  const [search, setSearch] = useState('')
  const [isDialogOpen, setIsDialogOpen] = useState(false)
  const [editingProduct, setEditingProduct] = useState<Product | null>(null)
- const [isPending, startTransition] = useTransition()
+ const [, startTransition] = useTransition()
  const router = useRouter()
  const { confirm } = useConfirm()
+
+ const filterProductsLocal = useMemo(() => {
+  return products.filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase()))
+ }, [products, search])
 
  const handleSearch = async (query: string) => {
   setSearch(query)
@@ -85,16 +94,73 @@ export default function ProductsClient({ initialProducts }: ProductsClientProps)
   setIsDialogOpen(true)
  }
 
- const getUnitLabel = (unit: string | null) => {
-  switch (unit) {
-   case 'day': return 'Jour'
-   case 'hour': return 'Heure'
-   case 'fixed': return 'Forfait'
-   case 'month': return 'Mois'
-   case 'year': return 'An'
-   default: return 'Pièce'
+ const columns: ColumnDef<Product>[] = [
+  {
+   accessorKey: 'name',
+   header: 'Nom',
+   cell: ({ row }) => (
+    <div>
+     <div className="font-medium text-foreground">{row.original.name}</div>
+     {row.original.description && (
+      <div className="text-xs text-muted-foreground truncate max-w-xs items-center">
+       {row.original.description}
+      </div>
+     )}
+    </div>
+   )
+  },
+  {
+   accessorKey: 'unitPrice',
+   header: 'Prix Unitaire',
+   cell: ({ row }) => (
+    <div className="font-medium">{formatPrice(row.original.unitPrice)}</div>
+   )
+  },
+  {
+   accessorKey: 'unit',
+   header: 'Unité',
+   cell: ({ row }) => (
+    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground">
+     {getUnitLabel(row.original.unit)}
+    </span>
+   )
+  },
+  {
+   accessorKey: 'vatRate',
+   header: 'TVA',
+   cell: ({ row }) => (
+    <div>{row.original.vatRate}%</div>
+   )
+  },
+  {
+   id: 'actions',
+   cell: ({ row }) => {
+    const product = row.original
+    return (
+     <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+       <Button variant="ghost" size="sm" className="h-8 w-8 p-0 float-right">
+        <MoreVertical className="w-4 h-4" />
+       </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+       <DropdownMenuItem onClick={() => openEdit(product)}>
+        <Pencil className="w-4 h-4 mr-2" />
+        Modifier
+       </DropdownMenuItem>
+       <DropdownMenuItem
+        onClick={() => handleDelete(product.id)}
+        className="text-red-600 focus:text-red-700"
+       >
+        <Trash2 className="w-4 h-4 mr-2" />
+        Supprimer
+       </DropdownMenuItem>
+      </DropdownMenuContent>
+     </DropdownMenu>
+    )
+   }
   }
- }
+ ]
 
  return (
   <div className="space-y-6 animate-fade-in">
@@ -117,7 +183,7 @@ export default function ProductsClient({ initialProducts }: ProductsClientProps)
     />
    </div>
 
-   <div className="bg-card rounded-lg border overflow-hidden">
+   <div className="bg-card rounded-lg overflow-hidden">
     {products.length === 0 ? (
      <EmptyState
       icon={Package}
@@ -126,62 +192,7 @@ export default function ProductsClient({ initialProducts }: ProductsClientProps)
       action={{ label: 'Créer un produit', onClick: openCreate }}
      />
     ) : (
-     <Table>
-      <TableHeader className="bg-muted/50">
-       <TableRow>
-        <TableHead>Nom</TableHead>
-        <TableHead>Prix Unitaire</TableHead>
-        <TableHead>Unité</TableHead>
-        <TableHead>TVA</TableHead>
-        <TableHead className="w-10"></TableHead>
-       </TableRow>
-      </TableHeader>
-      <TableBody>
-       {products.map((product) => (
-        <TableRow key={product.id}>
-         <TableCell>
-          <div className="font-medium text-foreground">{product.name}</div>
-          {product.description && (
-           <div className="text-xs text-muted-foreground truncate max-w-xs">
-            {product.description}
-           </div>
-          )}
-         </TableCell>
-         <TableCell className="font-medium">
-          {formatPrice(product.unitPrice)}
-         </TableCell>
-         <TableCell>
-          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground">
-           {getUnitLabel(product.unit)}
-          </span>
-         </TableCell>
-         <TableCell>{product.vatRate}%</TableCell>
-         <TableCell>
-          <DropdownMenu>
-           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-             <MoreVertical className="w-4 h-4" />
-            </Button>
-           </DropdownMenuTrigger>
-           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => openEdit(product)}>
-             <Pencil className="w-4 h-4 mr-2" />
-             Modifier
-            </DropdownMenuItem>
-            <DropdownMenuItem
-             onClick={() => handleDelete(product.id)}
-             className="text-red-600 focus:text-red-700"
-            >
-             <Trash2 className="w-4 h-4 mr-2" />
-             Supprimer
-            </DropdownMenuItem>
-           </DropdownMenuContent>
-          </DropdownMenu>
-         </TableCell>
-        </TableRow>
-       ))}
-      </TableBody>
-     </Table>
+     <DataTable columns={columns} data={filterProductsLocal} />
     )}
    </div>
 

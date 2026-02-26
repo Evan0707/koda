@@ -144,12 +144,19 @@ export async function getCompanies(search?: string) {
    )
   }
 
-  const result = await db.select()
-   .from(companies)
-   .where(and(...conditions))
-   .orderBy(companies.name)
+  const result = await db.query.companies.findMany({
+   where: and(...conditions),
+   with: {
+    taggables: {
+     with: {
+      tag: true
+     }
+    }
+   },
+   orderBy: (companies, { asc }) => [asc(companies.name)]
+  })
 
-  return { companies: result as Company[] }
+  return { companies: result as unknown as (Company & { taggables: { tag: any }[] })[] }
  } catch (error) {
   console.error('Error fetching companies:', error)
   return { error: 'Erreur lors du chargement', companies: [] }
@@ -161,15 +168,22 @@ export async function getCompany(id: string) {
  const organizationId = await getOrganizationId()
 
  try {
-  const [company] = await db.select()
-   .from(companies)
-   .where(and(
+  const company = await db.query.companies.findFirst({
+   where: and(
     eq(companies.id, id),
     eq(companies.organizationId, organizationId),
     isNull(companies.deletedAt)
-   ))
+   ),
+   with: {
+    taggables: {
+     with: {
+      tag: true
+     }
+    }
+   }
+  })
 
-  return { company: company as Company }
+  return { company: company as unknown as (Company & { taggables: { tag: any }[] }) }
  } catch (error) {
   console.error('Error fetching company:', error)
   return { error: 'Erreur lors du chargement' }

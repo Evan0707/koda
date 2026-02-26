@@ -11,14 +11,6 @@ import {
  SelectValue,
 } from '@/components/ui/select'
 import {
- Table,
- TableBody,
- TableCell,
- TableHead,
- TableHeader,
- TableRow,
-} from '@/components/ui/table'
-import {
  History,
  FileText,
  Receipt,
@@ -31,6 +23,8 @@ import {
 import { formatDistanceToNow } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { EmptyState } from '@/components/empty-state'
+import { DataTable } from '@/components/ui/data-table'
+import { ColumnDef } from '@tanstack/react-table'
 
 type AuditLog = {
  id: string
@@ -113,6 +107,61 @@ export function AuditLogsClient({ initialLogs }: { initialLogs: AuditLog[] }) {
 
  const entityTypes = [...new Set(initialLogs.map(log => log.entityType))]
 
+ const columns: ColumnDef<AuditLog>[] = [
+  {
+   accessorKey: 'action',
+   header: 'Action',
+   cell: ({ row }) => (
+    <Badge variant={getActionColor(row.original.action)}>
+     {ACTION_LABELS[row.original.action] || row.original.action}
+    </Badge>
+   )
+  },
+  {
+   accessorKey: 'entityType',
+   header: 'Type',
+   cell: ({ row }) => (
+    <div className="flex items-center gap-2 text-muted-foreground">
+     {ENTITY_ICONS[row.original.entityType] || <FileText className="w-4 h-4" />}
+     <span className="capitalize">{row.original.entityType}</span>
+    </div>
+   )
+  },
+  {
+   id: 'user',
+   header: 'Utilisateur',
+   cell: ({ row }) => {
+    const user = row.original.user
+    return user ? (
+     <span>{user.firstName} {user.lastName}</span>
+    ) : (
+     <span className="text-muted-foreground">Système</span>
+    )
+   }
+  },
+  {
+   accessorKey: 'createdAt',
+   header: 'Date',
+   cell: ({ row }) => (
+    <div className="text-muted-foreground">
+     {formatDistanceToNow(new Date(row.original.createdAt), {
+      addSuffix: true,
+      locale: fr,
+     })}
+    </div>
+   )
+  },
+  {
+   accessorKey: 'ipAddress',
+   header: 'IP',
+   cell: ({ row }) => (
+    <div className="text-muted-foreground font-mono text-sm">
+     {row.original.ipAddress || '-'}
+    </div>
+   )
+  }
+ ]
+
  return (
   <div className="space-y-6">
    <div className="flex items-center justify-between">
@@ -156,52 +205,7 @@ export function AuditLogsClient({ initialLogs }: { initialLogs: AuditLog[] }) {
        description="Les actions seront affichées ici"
       />
      ) : (
-      <Table>
-       <TableHeader>
-        <TableRow>
-         <TableHead>Action</TableHead>
-         <TableHead>Type</TableHead>
-         <TableHead>Utilisateur</TableHead>
-         <TableHead>Date</TableHead>
-         <TableHead>IP</TableHead>
-        </TableRow>
-       </TableHeader>
-       <TableBody>
-        {filteredLogs.map(log => (
-         <TableRow key={log.id}>
-          <TableCell>
-           <Badge variant={getActionColor(log.action)}>
-            {ACTION_LABELS[log.action] || log.action}
-           </Badge>
-          </TableCell>
-          <TableCell>
-           <div className="flex items-center gap-2 text-muted-foreground">
-            {ENTITY_ICONS[log.entityType] || <FileText className="w-4 h-4" />}
-            <span className="capitalize">{log.entityType}</span>
-           </div>
-          </TableCell>
-          <TableCell>
-           {log.user ? (
-            <span>
-             {log.user.firstName} {log.user.lastName}
-            </span>
-           ) : (
-            <span className="text-muted-foreground">Système</span>
-           )}
-          </TableCell>
-          <TableCell className="text-muted-foreground">
-           {formatDistanceToNow(new Date(log.createdAt), {
-            addSuffix: true,
-            locale: fr,
-           })}
-          </TableCell>
-          <TableCell className="text-muted-foreground font-mono text-sm">
-           {log.ipAddress || '-'}
-          </TableCell>
-         </TableRow>
-        ))}
-       </TableBody>
-      </Table>
+      <DataTable columns={columns} data={filteredLogs} />
      )}
     </CardContent>
    </Card>

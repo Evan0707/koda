@@ -35,6 +35,7 @@ export async function getUserProfile() {
       // Company info from organization
       companyName: dbUser?.organization?.name || null,
       companyAddress: dbUser?.organization?.address || null,
+      companyPostalCode: dbUser?.organization?.postalCode || null,
       companyCity: dbUser?.organization?.city || null,
       companyCountry: dbUser?.organization?.country || null,
       companySiret: dbUser?.organization?.siret || null,
@@ -112,6 +113,7 @@ export async function updateCompanyInfo(formData: FormData) {
   const orgData = {
     name: formData.get('companyName') as string || 'Mon Entreprise',
     address: formData.get('companyAddress') as string || null,
+    postalCode: formData.get('companyPostalCode') as string || null,
     city: formData.get('companyCity') as string || null,
     country: formData.get('companyCountry') as string || 'FR',
     siret: formData.get('companySiret') as string || null,

@@ -33,8 +33,21 @@ import {
  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { getCompanies, createCompany, updateCompany, deleteCompany } from '@/lib/actions/companies'
+import { getTags } from '@/lib/actions/tags'
 import { useConfirm } from '@/components/confirm-dialog'
 import Link from 'next/link'
+import { TagInput } from '@/components/ui/tag-input'
+import { Badge } from '@/components/ui/badge'
+
+type Tag = {
+ id: string
+ name: string
+ color: string | null
+}
+
+type CompanyWithTags = Company & {
+ taggables: { tag: Tag }[]
+}
 
 type Company = {
  id: string
@@ -47,20 +60,27 @@ type Company = {
 }
 
 export default function CompaniesClient() {
- const [companies, setCompanies] = useState<Company[]>([])
+ const [companies, setCompanies] = useState<CompanyWithTags[]>([])
+ const [allTags, setAllTags] = useState<Tag[]>([])
  const [search, setSearch] = useState('')
  const [isLoading, setIsLoading] = useState(true)
  const [isDialogOpen, setIsDialogOpen] = useState(false)
- const [editingCompany, setEditingCompany] = useState<Company | null>(null)
+ const [editingCompany, setEditingCompany] = useState<CompanyWithTags | null>(null)
  const [isPending, startTransition] = useTransition()
  const { confirm } = useConfirm()
 
  // Load companies
  const loadCompanies = async () => {
   setIsLoading(true)
-  const result = await getCompanies(search || undefined)
+  const [result, tagsRes] = await Promise.all([
+   getCompanies(search || undefined),
+   getTags()
+  ])
   if (result.companies) {
-   setCompanies(result.companies as Company[])
+   setCompanies(result.companies as unknown as CompanyWithTags[])
+  }
+  if (tagsRes.tags) {
+   setAllTags(tagsRes.tags as Tag[])
   }
   setIsLoading(false)
  }
@@ -110,7 +130,7 @@ export default function CompaniesClient() {
  }
 
  // Open edit dialog
- const openEdit = (company: Company) => {
+ const openEdit = (company: CompanyWithTags) => {
   setEditingCompany(company)
   setIsDialogOpen(true)
  }
@@ -186,6 +206,18 @@ export default function CompaniesClient() {
          />
         </div>
        </div>
+       {editingCompany && (
+        <div className="pt-2 border-t mt-4">
+         <Label className="mb-2 block">Tags</Label>
+         <TagInput
+          entityId={editingCompany.id}
+          entityType="company"
+          initialTags={allTags}
+          assignedTags={editingCompany.taggables?.map((t: any) => t.tag) || []}
+          onTagChange={loadCompanies}
+         />
+        </div>
+       )}
        <div className="flex justify-end gap-3 pt-4">
         <Button
          type="button"
@@ -297,32 +329,52 @@ export default function CompaniesClient() {
         </div>
        </CardHeader>
        <CardContent className="pt-0">
-        <div className="space-y-2 text-sm">
-         {company.website && (
-          <div className="flex items-center gap-2 text-muted-foreground">
-           <Globe className="w-3.5 h-3.5" />
-           <a
-            href={company.website}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-primary truncate"
-           >
-            {company.website.replace(/^https?:\/\//, '')}
-           </a>
+        <div className="space-y-4">
+         {company.taggables && company.taggables.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+           {company.taggables.map((t: any) => (
+            <Badge
+             key={t.tag.id}
+             variant="secondary"
+             className="text-[10px] px-1.5 py-0 h-5"
+             style={{
+              backgroundColor: t.tag.color ? `${t.tag.color}20` : undefined,
+              color: t.tag.color || undefined,
+              borderColor: t.tag.color ? `${t.tag.color}40` : undefined
+             }}
+            >
+             {t.tag.name}
+            </Badge>
+           ))}
           </div>
          )}
-         {company.city && (
-          <div className="flex items-center gap-2 text-muted-foreground">
-           <MapPin className="w-3.5 h-3.5" />
-           <span>{company.city}</span>
-          </div>
-         )}
-         {company.size && (
-          <div className="flex items-center gap-2 text-muted-foreground">
-           <Users className="w-3.5 h-3.5" />
-           <span>{company.size} employés</span>
-          </div>
-         )}
+         <div className="space-y-2 text-sm">
+          {company.website && (
+           <div className="flex items-center gap-2 text-muted-foreground">
+            <Globe className="w-3.5 h-3.5" />
+            <a
+             href={company.website}
+             target="_blank"
+             rel="noopener noreferrer"
+             className="hover:text-primary truncate"
+            >
+             {company.website.replace(/^https?:\/\//, '')}
+            </a>
+           </div>
+          )}
+          {company.city && (
+           <div className="flex items-center gap-2 text-muted-foreground">
+            <MapPin className="w-3.5 h-3.5" />
+            <span>{company.city}</span>
+           </div>
+          )}
+          {company.size && (
+           <div className="flex items-center gap-2 text-muted-foreground">
+            <Users className="w-3.5 h-3.5" />
+            <span>{company.size} employés</span>
+           </div>
+          )}
+         </div>
         </div>
        </CardContent>
       </Card>

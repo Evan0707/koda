@@ -2,14 +2,6 @@
 
 import { useState, useMemo, useTransition } from 'react'
 import { Button } from '@/components/ui/button'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { Plus, FileText, ArrowRight, Download, Trash2, Loader2 } from 'lucide-react'
 import { PageHeader } from '@/components/page-header'
 import { SearchInput } from '@/components/search-input'
@@ -22,6 +14,8 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { archiveInvoice } from '@/lib/actions/invoices'
 import { useConfirm } from '@/components/confirm-dialog'
+import { DataTable } from '@/components/ui/data-table'
+import { ColumnDef } from '@tanstack/react-table'
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'Tous les statuts' },
@@ -32,6 +26,14 @@ const STATUS_OPTIONS = [
   { value: 'cancelled', label: 'Annulée' },
 ]
 
+const INVOICE_STATUSES: Record<string, StatusConfig> = {
+  draft: { label: 'Brouillon', variant: 'muted' },
+  sent: { label: 'Envoyée', variant: 'blue' },
+  paid: { label: 'Payée', variant: 'green' },
+  overdue: { label: 'En retard', variant: 'red' },
+  cancelled: { label: 'Annulée', variant: 'muted' },
+}
+
 export default function InvoicesClient({ initialInvoices }: { initialInvoices: any[] }) {
   const [invoices, setInvoices] = useState(initialInvoices)
   const [search, setSearch] = useState('')
@@ -40,29 +42,6 @@ export default function InvoicesClient({ initialInvoices }: { initialInvoices: a
   const [, startTransition] = useTransition()
   const router = useRouter()
   const { confirm } = useConfirm()
-
-  // Filter invoices client-side
-  const filteredInvoices = useMemo(() => {
-    return invoices.filter(invoice => {
-      const matchesSearch = !search ||
-        invoice.number?.toLowerCase().includes(search.toLowerCase()) ||
-        invoice.title?.toLowerCase().includes(search.toLowerCase()) ||
-        invoice.company?.name?.toLowerCase().includes(search.toLowerCase()) ||
-        invoice.contact?.firstName?.toLowerCase().includes(search.toLowerCase())
-
-      const matchesStatus = statusFilter === 'all' || invoice.status === statusFilter
-
-      return matchesSearch && matchesStatus
-    })
-  }, [invoices, search, statusFilter])
-
-  const INVOICE_STATUSES: Record<string, StatusConfig> = {
-    draft: { label: 'Brouillon', variant: 'muted' },
-    sent: { label: 'Envoyée', variant: 'blue' },
-    paid: { label: 'Payée', variant: 'green' },
-    overdue: { label: 'En retard', variant: 'red' },
-    cancelled: { label: 'Annulée', variant: 'muted' },
-  }
 
   const handleArchive = (e: React.MouseEvent, id: string) => {
     e.stopPropagation()
@@ -86,6 +65,103 @@ export default function InvoicesClient({ initialInvoices }: { initialInvoices: a
       }
     })
   }
+
+  // Filter invoices client-side
+  const filteredInvoices = useMemo(() => {
+    return invoices.filter(invoice => {
+      const matchesSearch = !search ||
+        invoice.number?.toLowerCase().includes(search.toLowerCase()) ||
+        invoice.title?.toLowerCase().includes(search.toLowerCase()) ||
+        invoice.company?.name?.toLowerCase().includes(search.toLowerCase()) ||
+        invoice.contact?.firstName?.toLowerCase().includes(search.toLowerCase())
+
+      const matchesStatus = statusFilter === 'all' || invoice.status === statusFilter
+
+      return matchesSearch && matchesStatus
+    })
+  }, [invoices, search, statusFilter])
+
+  // Define columns
+  const columns: ColumnDef<any>[] = [
+    {
+      accessorKey: 'number',
+      header: 'Numéro',
+      cell: ({ row }) => (
+        <div className="font-medium text-primary">
+          {row.original.number}
+          {row.original.title && <div className="text-xs text-muted-foreground font-normal">{row.original.title}</div>}
+        </div>
+      ),
+      filterFn: (row, id, filterValue) => {
+        const title = row.original.title?.toLowerCase() || ''
+        const number = row.original.number?.toLowerCase() || ''
+        const search = filterValue.toLowerCase()
+        return title.includes(search) || number.includes(search)
+      }
+    },
+    {
+      id: 'client',
+      header: 'Client',
+      cell: ({ row }) => {
+        const inv = row.original
+        return inv.company?.name || (inv.contact ? `${inv.contact.firstName} ${inv.contact.lastName}` : '—')
+      }
+    },
+    {
+      accessorKey: 'issueDate',
+      header: 'Date d\'émission',
+      cell: ({ row }) => {
+        return row.original.issueDate ? new Date(row.original.issueDate).toLocaleDateString('fr-FR') : '—'
+      }
+    },
+    {
+      accessorKey: 'dueDate',
+      header: 'Échéance',
+      cell: ({ row }) => {
+        return row.original.dueDate ? new Date(row.original.dueDate).toLocaleDateString('fr-FR') : '—'
+      }
+    },
+    {
+      accessorKey: 'total',
+      header: 'Montant TTC',
+      cell: ({ row }) => (
+        <div className="font-medium">{formatPrice(row.original.total)}</div>
+      )
+    },
+    {
+      accessorKey: 'status',
+      header: 'Statut',
+      cell: ({ row }) => (
+        <StatusBadge status={row.original.status} statusConfig={INVOICE_STATUSES} />
+      ),
+      filterFn: (row, id, filterValue) => {
+        if (filterValue === 'all') return true
+        return row.original.status === filterValue
+      }
+    },
+    {
+      id: 'actions',
+      cell: ({ row }) => {
+        const inv = row.original
+        return (
+          <div className="flex items-center gap-1 justify-end">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+              onClick={(e) => handleArchive(e, inv.id)}
+              disabled={archivingId === inv.id}
+            >
+              {archivingId === inv.id
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : <Trash2 className="w-4 h-4" />}
+            </Button>
+            <ArrowRight className="w-4 h-4 text-muted-foreground" />
+          </div>
+        )
+      }
+    }
+  ]
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -133,7 +209,7 @@ export default function InvoicesClient({ initialInvoices }: { initialInvoices: a
         />
       </div>
 
-      <div className="bg-card rounded-lg border overflow-hidden">
+      <div className="bg-card rounded-lg overflow-hidden">
         {filteredInvoices.length === 0 ? (
           <EmptyState
             icon={FileText}
@@ -149,58 +225,11 @@ export default function InvoicesClient({ initialInvoices }: { initialInvoices: a
               : undefined}
           />
         ) : (
-          <Table>
-            <TableHeader className="bg-muted/50">
-              <TableRow>
-                <TableHead>Numéro</TableHead>
-                <TableHead>Client</TableHead>
-                <TableHead className="hidden md:table-cell">Date d&apos;émission</TableHead>
-                <TableHead className="hidden md:table-cell">Échéance</TableHead>
-                <TableHead>Montant TTC</TableHead>
-                <TableHead>Statut</TableHead>
-                <TableHead className="w-20"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredInvoices.map((invoice) => (
-                <TableRow key={invoice.id} className="cursor-pointer hover:bg-muted/50" onClick={() => router.push(`/dashboard/invoices/${invoice.id}`)}>
-                  <TableCell className="font-medium text-primary">
-                    {invoice.number}
-                    {invoice.title && <div className="text-xs text-muted-foreground font-normal">{invoice.title}</div>}
-                  </TableCell>
-                  <TableCell>
-                    {invoice.company?.name || (invoice.contact ? `${invoice.contact.firstName} ${invoice.contact.lastName}` : '—')}
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell">
-                    {invoice.issueDate ? new Date(invoice.issueDate).toLocaleDateString('fr-FR') : '—'}
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell">
-                    {invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString('fr-FR') : '—'}
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    {formatPrice(invoice.total)}
-                  </TableCell>
-                  <TableCell>{<StatusBadge status={invoice.status} statusConfig={INVOICE_STATUSES} />}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                        onClick={(e) => handleArchive(e, invoice.id)}
-                        disabled={archivingId === invoice.id}
-                      >
-                        {archivingId === invoice.id
-                          ? <Loader2 className="w-4 h-4 animate-spin" />
-                          : <Trash2 className="w-4 h-4" />}
-                      </Button>
-                      <ArrowRight className="w-4 h-4 text-muted-foreground" />
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <DataTable
+            columns={columns}
+            data={filteredInvoices}
+            onRowClick={(row) => router.push(`/dashboard/invoices/${row.id}`)}
+          />
         )}
       </div>
     </div>

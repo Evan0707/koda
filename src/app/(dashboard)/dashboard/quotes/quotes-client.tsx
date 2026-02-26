@@ -2,14 +2,6 @@
 
 import { useState, useMemo, useTransition } from 'react'
 import { Button } from '@/components/ui/button'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { PageHeader } from '@/components/page-header'
 import { SearchInput } from '@/components/search-input'
 import { StatusBadge, type StatusConfig } from '@/components/status-badge'
@@ -22,6 +14,8 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { archiveQuote } from '@/lib/actions/quotes'
 import { useConfirm } from '@/components/confirm-dialog'
+import { DataTable } from '@/components/ui/data-table'
+import { ColumnDef } from '@tanstack/react-table'
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'Tous les statuts' },
@@ -32,6 +26,14 @@ const STATUS_OPTIONS = [
   { value: 'expired', label: 'Expiré' },
 ]
 
+const QUOTE_STATUSES: Record<string, StatusConfig> = {
+  draft: { label: 'Brouillon', variant: 'muted' },
+  sent: { label: 'Envoyé', variant: 'blue' },
+  accepted: { label: 'Accepté', variant: 'green' },
+  rejected: { label: 'Refusé', variant: 'red' },
+  expired: { label: 'Expiré', variant: 'orange' },
+}
+
 export default function QuotesClient({ initialQuotes }: { initialQuotes: any[] }) {
   const [quotes, setQuotes] = useState(initialQuotes)
   const [search, setSearch] = useState('')
@@ -40,29 +42,6 @@ export default function QuotesClient({ initialQuotes }: { initialQuotes: any[] }
   const [, startTransition] = useTransition()
   const router = useRouter()
   const { confirm } = useConfirm()
-
-  // Filter quotes client-side
-  const filteredQuotes = useMemo(() => {
-    return quotes.filter(quote => {
-      const matchesSearch = !search ||
-        quote.number?.toLowerCase().includes(search.toLowerCase()) ||
-        quote.title?.toLowerCase().includes(search.toLowerCase()) ||
-        quote.company?.name?.toLowerCase().includes(search.toLowerCase()) ||
-        quote.contact?.firstName?.toLowerCase().includes(search.toLowerCase())
-
-      const matchesStatus = statusFilter === 'all' || quote.status === statusFilter
-
-      return matchesSearch && matchesStatus
-    })
-  }, [quotes, search, statusFilter])
-
-  const QUOTE_STATUSES: Record<string, StatusConfig> = {
-    draft: { label: 'Brouillon', variant: 'muted' },
-    sent: { label: 'Envoyé', variant: 'blue' },
-    accepted: { label: 'Accepté', variant: 'green' },
-    rejected: { label: 'Refusé', variant: 'red' },
-    expired: { label: 'Expiré', variant: 'orange' },
-  }
 
   const handleArchive = (e: React.MouseEvent, id: string) => {
     e.stopPropagation()
@@ -86,6 +65,97 @@ export default function QuotesClient({ initialQuotes }: { initialQuotes: any[] }
       }
     })
   }
+
+  // Define columns
+  const columns: ColumnDef<any>[] = [
+    {
+      accessorKey: 'number',
+      header: 'Numéro',
+      cell: ({ row }) => (
+        <div className="font-medium text-primary">
+          {row.original.number}
+          {row.original.title && <div className="text-xs text-muted-foreground font-normal">{row.original.title}</div>}
+        </div>
+      ),
+      filterFn: (row, id, filterValue) => {
+        const title = row.original.title?.toLowerCase() || ''
+        const number = row.original.number?.toLowerCase() || ''
+        const search = filterValue.toLowerCase()
+        return title.includes(search) || number.includes(search)
+      }
+    },
+    {
+      id: 'client',
+      header: 'Client',
+      cell: ({ row }) => {
+        const q = row.original
+        return q.company?.name || (q.contact ? `${q.contact.firstName} ${q.contact.lastName}` : '—')
+      }
+    },
+    {
+      accessorKey: 'issueDate',
+      header: 'Date',
+      cell: ({ row }) => {
+        return row.original.issueDate ? new Date(row.original.issueDate).toLocaleDateString('fr-FR') : '—'
+      }
+    },
+    {
+      accessorKey: 'total',
+      header: 'Montant TTC',
+      cell: ({ row }) => (
+        <div className="font-medium">{formatPrice(row.original.total)}</div>
+      )
+    },
+    {
+      accessorKey: 'status',
+      header: 'Statut',
+      cell: ({ row }) => (
+        <StatusBadge status={row.original.status} statusConfig={QUOTE_STATUSES} />
+      ),
+      filterFn: (row, id, filterValue) => {
+        if (filterValue === 'all') return true
+        return row.original.status === filterValue
+      }
+    },
+    {
+      id: 'actions',
+      cell: ({ row }) => {
+        const q = row.original
+        return (
+          <div className="flex items-center gap-1 justify-end">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+              onClick={(e) => handleArchive(e, q.id)}
+              disabled={archivingId === q.id}
+            >
+              {archivingId === q.id
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : <Trash2 className="w-4 h-4" />}
+            </Button>
+            <ArrowRight className="w-4 h-4 text-muted-foreground" />
+          </div>
+        )
+      }
+    }
+  ]
+
+  // Filter quotes client-side
+  const filteredQuotes = useMemo(() => {
+    return quotes.filter(quote => {
+      const matchesSearch = !search ||
+        quote.number?.toLowerCase().includes(search.toLowerCase()) ||
+        quote.title?.toLowerCase().includes(search.toLowerCase()) ||
+        quote.company?.name?.toLowerCase().includes(search.toLowerCase()) ||
+        quote.contact?.firstName?.toLowerCase().includes(search.toLowerCase())
+
+      const matchesStatus = statusFilter === 'all' || quote.status === statusFilter
+
+      return matchesSearch && matchesStatus
+    })
+  }, [quotes, search, statusFilter])
+
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -124,7 +194,7 @@ export default function QuotesClient({ initialQuotes }: { initialQuotes: any[] }
         />
       </div>
 
-      <div className="bg-card rounded-lg border overflow-hidden">
+      <div className="bg-card rounded-lg overflow-hidden">
         {filteredQuotes.length === 0 ? (
           <EmptyState
             icon={FileText}
@@ -140,54 +210,11 @@ export default function QuotesClient({ initialQuotes }: { initialQuotes: any[] }
               : undefined}
           />
         ) : (
-          <Table>
-            <TableHeader className="bg-muted/50">
-              <TableRow>
-                <TableHead>Numéro</TableHead>
-                <TableHead>Client</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Montant TTC</TableHead>
-                <TableHead>Statut</TableHead>
-                <TableHead className="w-20"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredQuotes.map((quote) => (
-                <TableRow key={quote.id} className="cursor-pointer hover:bg-muted/50" onClick={() => router.push(`/dashboard/quotes/${quote.id}`)}>
-                  <TableCell className="font-medium text-primary">
-                    {quote.number}
-                    {quote.title && <div className="text-xs text-muted-foreground font-normal">{quote.title}</div>}
-                  </TableCell>
-                  <TableCell>
-                    {quote.company?.name || (quote.contact ? `${quote.contact.firstName} ${quote.contact.lastName}` : '—')}
-                  </TableCell>
-                  <TableCell>
-                    {quote.issueDate ? new Date(quote.issueDate).toLocaleDateString('fr-FR') : '—'}
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    {formatPrice(quote.total)}
-                  </TableCell>
-                  <TableCell>{<StatusBadge status={quote.status} statusConfig={QUOTE_STATUSES} />}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                        onClick={(e) => handleArchive(e, quote.id)}
-                        disabled={archivingId === quote.id}
-                      >
-                        {archivingId === quote.id
-                          ? <Loader2 className="w-4 h-4 animate-spin" />
-                          : <Trash2 className="w-4 h-4" />}
-                      </Button>
-                      <ArrowRight className="w-4 h-4 text-muted-foreground" />
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <DataTable
+            columns={columns}
+            data={filteredQuotes}
+            onRowClick={(row) => router.push(`/dashboard/quotes/${row.id}`)}
+          />
         )}
       </div>
     </div>

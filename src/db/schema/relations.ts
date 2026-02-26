@@ -1,6 +1,6 @@
 import { relations } from 'drizzle-orm'
 import { organizations, users } from './core'
-import { companies, contacts, opportunities, pipelineStages, activities } from './crm'
+import { companies, contacts, opportunities, pipelineStages, activities, tags, taggables } from './crm'
 import { products, quotes, quoteItems, invoices, invoiceItems, payments } from './billing'
 import { projects, tasks, cycles, timeEntries } from './projects'
 import { contracts } from './legal'
@@ -58,6 +58,7 @@ export const companiesRelations = relations(companies, ({ one, many }) => ({
  contacts: many(contacts),
  opportunities: many(opportunities),
  activities: many(activities),
+ taggables: many(taggables),
 }))
 
 export const contactsRelations = relations(contacts, ({ one, many }) => ({
@@ -71,6 +72,7 @@ export const contactsRelations = relations(contacts, ({ one, many }) => ({
  }),
  opportunities: many(opportunities),
  activities: many(activities),
+ taggables: many(taggables),
 }))
 
 export const opportunitiesRelations = relations(opportunities, ({ one, many }) => ({
@@ -95,6 +97,34 @@ export const opportunitiesRelations = relations(opportunities, ({ one, many }) =
   references: [users.id],
  }),
  activities: many(activities),
+ taggables: many(taggables),
+}))
+
+export const tagsRelations = relations(tags, ({ one, many }) => ({
+ organization: one(organizations, {
+  fields: [tags.organizationId],
+  references: [organizations.id],
+ }),
+ taggables: many(taggables),
+}))
+
+export const taggablesRelations = relations(taggables, ({ one }) => ({
+ tag: one(tags, {
+  fields: [taggables.tagId],
+  references: [tags.id],
+ }),
+ company: one(companies, {
+  fields: [taggables.taggableId],
+  references: [companies.id],
+ }),
+ contact: one(contacts, {
+  fields: [taggables.taggableId],
+  references: [contacts.id],
+ }),
+ opportunity: one(opportunities, {
+  fields: [taggables.taggableId],
+  references: [opportunities.id],
+ }),
 }))
 
 // ============================================

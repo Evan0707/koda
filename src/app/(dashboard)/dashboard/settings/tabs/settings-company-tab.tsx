@@ -8,10 +8,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { toast } from 'sonner'
 import { Building2, Loader2, Save, MapPin, Globe } from 'lucide-react'
 import { updateCompanyInfo } from '@/lib/actions/settings'
+import { AddressAutocomplete } from '@/components/ui/address-autocomplete'
+import { SiretInput } from '@/components/ui/siret-input'
 
 type CompanyInfo = {
   companyName: string | null
   companyAddress: string | null
+  companyPostalCode: string | null
   companyCity: string | null
   companyCountry: string | null
   companySiret: string | null
@@ -60,25 +63,44 @@ export default function SettingsCompanyTab({ profile }: { profile: CompanyInfo }
           <div className="space-y-2">
             <Label htmlFor="companyAddress">Adresse</Label>
             <div className="relative">
-              <MapPin className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-              <Input
+              <MapPin className="absolute left-3 top-3 w-4 h-4 text-muted-foreground z-10" />
+              <AddressAutocomplete
                 id="companyAddress"
                 name="companyAddress"
                 defaultValue={profile?.companyAddress || ''}
                 placeholder="123 Rue de la Victoire"
                 className="pl-10"
+                onAddressSelect={(address) => {
+                  const postalCodeInput = document.getElementById('companyPostalCode') as HTMLInputElement
+                  if (postalCodeInput) {
+                    postalCodeInput.value = address.postcode
+                  }
+                  const cityInput = document.getElementById('companyCity') as HTMLInputElement
+                  if (cityInput) {
+                    cityInput.value = address.city
+                  }
+                }}
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="companyPostalCode">Code Postal</Label>
+              <Input
+                id="companyPostalCode"
+                name="companyPostalCode"
+                defaultValue={profile?.companyPostalCode || ''}
+                placeholder="75009"
+              />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="companyCity">Ville</Label>
               <Input
                 id="companyCity"
                 name="companyCity"
                 defaultValue={profile?.companyCity || ''}
-                placeholder="75009 Paris"
+                placeholder="Paris"
               />
             </div>
             <div className="space-y-2">
@@ -99,7 +121,7 @@ export default function SettingsCompanyTab({ profile }: { profile: CompanyInfo }
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label htmlFor="companySiret">SIRET</Label>
-              <Input
+              <SiretInput
                 id="companySiret"
                 name="companySiret"
                 defaultValue={profile?.companySiret || ''}
