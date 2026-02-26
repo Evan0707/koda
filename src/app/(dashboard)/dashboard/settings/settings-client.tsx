@@ -34,6 +34,7 @@ type Profile = {
   companyName: string | null
   companyAddress: string | null
   companyCity: string | null
+  companyPostalCode: string | null
   companyCountry: string | null
   companySiret: string | null
   companyVat: string | null
