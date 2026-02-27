@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useTransition } from 'react'
+import { useState, useEffect, useTransition, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -172,16 +172,20 @@ export default function TimeTrackingClient({
   }
 
   // Group entries by date
-  const groupedEntries = entries.reduce((acc, entry) => {
-    const date = entry.date
-    if (!acc[date]) acc[date] = []
-    acc[date].push(entry)
-    return acc
-  }, {} as Record<string, TimeEntryWithRelations[]>)
+  const { groupedEntries, sortedDates } = useMemo(() => {
+    const grouped = entries.reduce((acc, entry) => {
+      const date = entry.date
+      if (!acc[date]) acc[date] = []
+      acc[date].push(entry)
+      return acc
+    }, {} as Record<string, TimeEntryWithRelations[]>)
 
-  const sortedDates = Object.keys(groupedEntries).sort((a, b) =>
-    new Date(b).getTime() - new Date(a).getTime()
-  )
+    const sorted = Object.keys(grouped).sort((a, b) =>
+      new Date(b).getTime() - new Date(a).getTime()
+    )
+
+    return { groupedEntries: grouped, sortedDates: sorted }
+  }, [entries])
 
   return (
     <div className="space-y-6 animate-fade-in">

@@ -164,7 +164,7 @@ export default function ContactsClient() {
     setIsDialogOpen(true)
   }
 
-  const columns: ColumnDef<ContactWithCompany>[] = [
+  const columns = useMemo<ColumnDef<ContactWithCompany>[]>(() => [
     {
       id: 'contact',
       header: 'Contact',
@@ -295,7 +295,7 @@ export default function ContactsClient() {
         )
       }
     }
-  ]
+  ], [allTags])
 
   return (
     <div className="space-y-6 animate-fade-in">

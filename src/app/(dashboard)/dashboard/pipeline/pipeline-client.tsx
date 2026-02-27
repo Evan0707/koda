@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useTransition } from 'react'
+import { useState, useEffect, useTransition, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -221,23 +221,34 @@ export default function PipelineClient() {
     })
   }
 
-  const getStageOpportunities = (stageId: string) => {
-    return opportunities
-      .filter(o => o.stage_id === stageId)
-      .filter(o => {
-        if (filterCompany && o.company_id !== filterCompany) return false
-        if (filterOverdue && (!o.expected_close_date || new Date(o.expected_close_date) >= new Date())) return false
-        return true
-      })
-  }
+  const groupedOpportunities = useMemo(() => {
+    const filtered = opportunities.filter(o => {
+      if (filterCompany && o.company_id !== filterCompany) return false
+      if (filterOverdue && (!o.expected_close_date || new Date(o.expected_close_date) >= new Date())) return false
+      return true
+    })
 
-  const totalPipelineValue = opportunities
-    .filter(o => !stages.find(s => s.id === o.stage_id)?.isWon && !stages.find(s => s.id === o.stage_id)?.isLost)
-    .reduce((sum, o) => sum + o.value, 0)
+    const byStage = {} as Record<string, typeof opportunities>
+    stages.forEach(s => byStage[s.id] = [])
 
-  const weightedPipelineValue = opportunities
-    .filter(o => !stages.find(s => s.id === o.stage_id)?.isWon && !stages.find(s => s.id === o.stage_id)?.isLost)
-    .reduce((sum, o) => sum + Math.round(o.value * o.probability / 100), 0)
+    filtered.forEach(o => {
+      if (byStage[o.stage_id]) byStage[o.stage_id].push(o)
+      else byStage[o.stage_id] = [o]
+    })
+    return byStage
+  }, [opportunities, filterCompany, filterOverdue, stages])
+
+  const { totalPipelineValue, weightedPipelineValue } = useMemo(() => {
+    const activeOps = opportunities.filter(o => {
+      const stage = stages.find(s => s.id === o.stage_id)
+      return stage && !stage.isWon && !stage.isLost
+    })
+
+    const total = activeOps.reduce((sum, o) => sum + o.value, 0)
+    const weighted = activeOps.reduce((sum, o) => sum + Math.round(o.value * o.probability / 100), 0)
+
+    return { totalPipelineValue: total, weightedPipelineValue: weighted }
+  }, [opportunities, stages])
 
   const activeOpportunity = activeId ? opportunities.find(o => o.id === activeId) : null
 
@@ -327,7 +338,7 @@ export default function PipelineClient() {
                 key={stage.id}
                 stage={stage}
                 stages={stages}
-                opportunities={getStageOpportunities(stage.id)}
+                opportunities={groupedOpportunities[stage.id] || []}
                 onAddOpportunity={openAddDialog}
                 onEditOpportunity={openEditDialog}
                 onDeleteOpportunity={handleDelete}

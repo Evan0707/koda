@@ -6,9 +6,16 @@ import Stripe from 'stripe'
 import { revalidatePath } from 'next/cache'
 import { getPublicInvoiceSchema, createCheckoutSchema, validateInput } from '@/lib/validations'
 import { getAppUrl } from '@/lib/utils'
+import { isRateLimited, getRateLimitKey, rateLimiters } from '@/lib/rate-limit'
 
 // Get invoice for public payment page (no auth required)
 export async function getPublicInvoice(invoiceId: string) {
+ // Rate limit public endpoint
+ const rateLimitKey = await getRateLimitKey('stripe:public-invoice')
+ if (await isRateLimited(rateLimitKey, rateLimiters.standard)) {
+  return { error: 'Trop de requêtes. Réessayez dans un instant.' }
+ }
+
  // Validate input
  const validation = validateInput(getPublicInvoiceSchema, { invoiceId })
  if (!validation.success) {
@@ -96,6 +103,12 @@ export async function getPublicInvoice(invoiceId: string) {
 
 // Create Stripe Checkout Session
 export async function createCheckoutSession(invoiceId: string) {
+ // Rate limit public endpoint
+ const rateLimitKey = await getRateLimitKey('stripe:checkout')
+ if (await isRateLimited(rateLimitKey, rateLimiters.standard)) {
+  return { error: 'Trop de requêtes. Réessayez dans un instant.' }
+ }
+
  // Validate input
  const validation = validateInput(createCheckoutSchema, { invoiceId })
  if (!validation.success) {
@@ -228,6 +241,8 @@ export async function markInvoiceAsPaid(invoiceId: string, stripeSessionId?: str
  const auth = await requirePermission('manage_billing')
  if ('error' in auth) return { error: auth.error }
 
+ const organizationId = auth.user.organizationId!
+
  try {
   await db.update(schema.invoices)
    .set({
@@ -235,11 +250,11 @@ export async function markInvoiceAsPaid(invoiceId: string, stripeSessionId?: str
     paidAt: new Date(),
     updatedAt: new Date(),
    })
-   .where(eq(schema.invoices.id, invoiceId))
+   .where(and(eq(schema.invoices.id, invoiceId), eq(schema.invoices.organizationId, organizationId)))
 
   // Create payment record
   const invoice = await db.query.invoices.findFirst({
-   where: eq(schema.invoices.id, invoiceId),
+   where: and(eq(schema.invoices.id, invoiceId), eq(schema.invoices.organizationId, organizationId)),
   })
 
   if (invoice) {

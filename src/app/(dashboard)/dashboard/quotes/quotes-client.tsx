@@ -67,7 +67,7 @@ export default function QuotesClient({ initialQuotes }: { initialQuotes: any[] }
   }
 
   // Define columns
-  const columns: ColumnDef<any>[] = [
+  const columns = useMemo<ColumnDef<any>[]>(() => [
     {
       accessorKey: 'number',
       header: 'Numéro',
@@ -139,7 +139,7 @@ export default function QuotesClient({ initialQuotes }: { initialQuotes: any[] }
         )
       }
     }
-  ]
+  ], [archivingId])
 
   // Filter quotes client-side
   const filteredQuotes = useMemo(() => {

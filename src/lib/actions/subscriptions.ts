@@ -6,6 +6,10 @@ import { db, schema } from '@/db'
 import { eq } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { getAppUrl } from '@/lib/utils'
+import { z } from 'zod'
+
+const planSchema = z.enum(['starter', 'pro'])
+const billingSchema = z.enum(['monthly', 'annual'])
 
 function getStripe() {
   return new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -36,6 +40,12 @@ async function clearStaleSubscription(orgId: string) {
 }
 
 export async function createSubscriptionCheckout(plan: 'starter' | 'pro', billing: 'monthly' | 'annual' = 'monthly') {
+  // Validate inputs at runtime
+  const parsedPlan = planSchema.safeParse(plan)
+  if (!parsedPlan.success) return { error: 'Plan invalide' }
+  const parsedBilling = billingSchema.safeParse(billing)
+  if (!parsedBilling.success) return { error: 'Période de facturation invalide' }
+
   const auth = await requirePermission('manage_subscription')
   if ('error' in auth) return { error: auth.error }
 
@@ -346,6 +356,10 @@ export async function createCustomerPortalSession() {
 
 // Change plan (upgrade or downgrade) with proration
 export async function changePlan(newPlan: 'starter' | 'pro') {
+  // Validate input at runtime
+  const parsed = planSchema.safeParse(newPlan)
+  if (!parsed.success) return { error: 'Plan invalide' }
+
   const auth = await requirePermission('manage_subscription')
   if ('error' in auth) return { error: auth.error }
 
@@ -408,7 +422,7 @@ export async function changePlan(newPlan: 'starter' | 'pro') {
 
     // Update subscription with proration
     const isUpgrade = (org.plan === 'starter' && newPlan === 'pro') ||
-                      (org.plan === 'free' && (newPlan === 'starter' || newPlan === 'pro'))
+      (org.plan === 'free' && (newPlan === 'starter' || newPlan === 'pro'))
 
     await getStripe().subscriptions.update(org.stripeSubscriptionId, {
       items: [{
