@@ -929,6 +929,7 @@ export default function HomePage() {
               <ul className="space-y-2 text-muted-foreground text-sm">
                 <li><Link href="/docs" className="hover:text-foreground transition-colors">Documentation</Link></li>
                 <li><Link href="/aide" className="hover:text-foreground transition-colors">Centre d'aide</Link></li>
+                <li><Link href="/changelog" className="hover:text-foreground transition-colors">Changelog</Link></li>
               </ul>
             </div>
 

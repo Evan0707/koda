@@ -58,6 +58,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'monthly',
       priority: 0.7,
     },
+    {
+      url: `${appUrl}/changelog`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.6,
+    },
     ...['demarrage', 'contacts', 'devis', 'factures', 'projets', 'abonnement', 'parametres'].map(slug => ({
       url: `${appUrl}/docs/${slug}`,
       lastModified: new Date(),
