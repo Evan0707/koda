@@ -12,6 +12,13 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "KodaFlow - Tout-en-un pour Freelances",
   description: "Gérez vos clients, devis, factures et projets en un seul endroit.",
+  icons: {
+    icon: [
+      { url: '/LogoLightMod.svg', media: '(prefers-color-scheme: light)' },
+      { url: '/LogoDarkMod.svg', media: '(prefers-color-scheme: dark)' },
+    ],
+    apple: '/logo.png',
+  },
 };
 
 export default function RootLayout({

@@ -134,9 +134,10 @@ export default function InvoiceDetail({ invoice }: InvoiceDetailProps) {
                 {/* Header */}
                 <div className="flex justify-between items-start mb-12">
                     <div>
-                        {/* Logo Placeholder */}
-                        <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center mb-4">
-                            <span className="text-primary-foreground font-bold text-xl">K</span>
+                        <div className="w-12 h-12 mb-4">
+                            <img src="/LogoLightMod.svg" alt="KodaFlow" className="w-full h-full object-contain dark:hidden" />
+                            <img src="/LogoDarkMod.svg" alt="KodaFlow" className="w-full h-full object-contain hidden dark:block print:hidden" />
+                            <img src="/LogoLightMod.svg" alt="KodaFlow" className="w-full h-full object-contain hidden print:block" />
                         </div>
                         <h2 className="text-lg font-bold text-foreground">KodaFlow</h2>
                         <div className="text-sm text-muted-foreground mt-1">

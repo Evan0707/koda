@@ -132,6 +132,17 @@ export default function SignupPage() {
       </>
      )}
     </Button>
+
+    <p className="text-xs text-muted-foreground text-center mt-3">
+     En créant un compte, vous acceptez nos{' '}
+     <Link href="/legal/cgv" className="underline underline-offset-2 hover:text-foreground">
+      CGV/CGU
+     </Link>{' '}
+     et notre{' '}
+     <Link href="/legal/confidentialite" className="underline underline-offset-2 hover:text-foreground">
+      Politique de confidentialité
+     </Link>.
+    </p>
    </form>
 
    <div className="relative my-6">

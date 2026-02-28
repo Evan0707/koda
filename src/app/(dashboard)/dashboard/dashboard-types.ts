@@ -24,6 +24,7 @@ export const WIDGET_CONFIG: Record<string, string> = {
   unpaidInvoices: 'Factures impayées',
   projects: 'Projets actifs',
   chart: 'Graphique CA',
+  copilot: 'Co-pilote IA',
   quickActions: 'Actions rapides',
   activity: 'Activité récente',
 }
@@ -46,6 +47,7 @@ export const formatCurrencyCompact = (cents: number) =>
 export const getColSpan = (id: WidgetId) => {
   switch (id) {
     case 'chart': return 'col-span-1 lg:col-span-2'
+    case 'copilot': return 'col-span-1 lg:col-span-2'
     default: return 'col-span-1'
   }
 }

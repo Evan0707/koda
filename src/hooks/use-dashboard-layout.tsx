@@ -9,6 +9,7 @@ export type WidgetId =
  | 'chart'
  | 'quickActions'
  | 'activity'
+ | 'copilot'
 
 const DEFAULT_LAYOUT: WidgetId[] = [
  'revenue',
@@ -17,6 +18,7 @@ const DEFAULT_LAYOUT: WidgetId[] = [
  'unpaidInvoices',
  'projects',
  'chart',
+ 'copilot',
  'quickActions',
  'activity',
 ]

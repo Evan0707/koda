@@ -28,6 +28,7 @@ import {
   Calendar,
   BarChart3
 } from 'lucide-react'
+import { ThemeLogo } from '@/components/theme-logo'
 
 // Animation variants
 const fadeInUp = {
@@ -336,11 +337,12 @@ export default function HomePage() {
   const backgroundY = useTransform(scrollYProgress, [0, 1], ['0%', '50%'])
 
   const faqs = [
-    { question: "Est-ce vraiment gratuit ?", answer: "Oui ! Pendant la période de bêta publique, l'accès à KodaFlow est entièrement gratuit. Profitez de toutes les fonctionnalités Pro sans limite." },
+    { question: "Y a-t-il un essai gratuit ?", answer: "Oui ! Chaque plan payant (Starter et Pro) bénéficie de 14 jours d'essai gratuit, sans carte bancaire requise. Vous pouvez aussi utiliser le plan Gratuit sans limite de durée." },
     { question: "Comment fonctionne la signature électronique ?", answer: "Envoyez un lien de signature à vos clients par email. Ils peuvent signer depuis n'importe quel appareil. Les signatures sont légalement valides et conformes eIDAS." },
-    { question: "Puis-je importer mes données existantes ?", answer: "Absolument ! Nous supportons l'import CSV/Excel pour vos contacts, produits et historique. Notre équipe peut vous accompagner gratuitement." },
-    { question: "L'IA est-elle vraiment incluse ?", answer: "Oui, l'IA est intégrée dans les plans Pro et Business. Elle vous aide à rédiger des devis, emails et analyse vos données pour des insights pertinents." },
+    { question: "Puis-je importer mes données existantes ?", answer: "Absolument ! Nous supportons l'import CSV/Excel pour vos contacts, produits et historique. Notre équipe peut vous accompagner." },
+    { question: "L'IA est-elle vraiment incluse ?", answer: "Oui, l'IA est intégrée dans le plan Pro. Elle vous aide à rédiger des devis, emails et analyse vos données pour des insights pertinents." },
     { question: "Comment fonctionne la facturation ?", answer: "Les factures sont générées automatiquement à partir de vos devis signés. Vous pouvez aussi créer des factures manuellement. Export FEC inclus pour votre comptable." },
+    { question: "Puis-je changer de plan à tout moment ?", answer: "Oui, vous pouvez upgrader, downgrader ou annuler votre abonnement à tout moment. Aucun engagement, aucuns frais cachés." },
   ]
 
   return (
@@ -371,16 +373,14 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <Link href="/" className="flex items-center gap-2.5">
-              <div className="w-8 h-8 bg-foreground rounded-lg flex items-center justify-center">
-                <span className="text-background font-bold text-sm">K</span>
-              </div>
+              <ThemeLogo className="w-8 h-8" />
               <span className="text-lg font-semibold text-foreground">KodaFlow</span>
             </Link>
 
             <div className="hidden md:flex items-center gap-8">
               <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors text-sm">Fonctionnalités</a>
               <a href="#how-it-works" className="text-muted-foreground hover:text-foreground transition-colors text-sm">Comment ça marche</a>
-              <a href="#pricing" className="text-muted-foreground hover:text-foreground transition-colors text-sm">Offre Bêta</a>
+              <a href="#pricing" className="text-muted-foreground hover:text-foreground transition-colors text-sm">Tarifs</a>
               <a href="#faq" className="text-muted-foreground hover:text-foreground transition-colors text-sm">FAQ</a>
             </div>
 
@@ -420,7 +420,7 @@ export default function HomePage() {
               <div className="px-6 py-4 flex flex-col gap-4">
                 <a href="#features" className="text-muted-foreground hover:text-foreground text-sm">Fonctionnalités</a>
                 <a href="#how-it-works" className="text-muted-foreground hover:text-foreground text-sm">Comment ça marche</a>
-                <a href="#pricing" className="text-muted-foreground hover:text-foreground text-sm">Offre Bêta</a>
+                <a href="#pricing" className="text-muted-foreground hover:text-foreground text-sm">Tarifs</a>
                 <a href="#faq" className="text-muted-foreground hover:text-foreground text-sm">FAQ</a>
                 <hr className="border-border" />
                 <Link href="/login">
@@ -451,7 +451,7 @@ export default function HomePage() {
               >
                 <Sparkles className="w-3.5 h-3.5 text-foreground" />
               </motion.div>
-              <span className="text-xs text-muted-foreground">Nouveau : Intelligence artificielle intégrée</span>
+              <span className="text-xs text-muted-foreground">CRM, devis, factures — tout-en-un avec IA intégrée</span>
             </motion.div>
 
             <motion.h1
@@ -492,12 +492,6 @@ export default function HomePage() {
                   </Button>
                 </motion.div>
               </Link>
-              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                <Button size="lg" variant="outline" className="w-full sm:w-auto border-border text-foreground hover:bg-muted px-6">
-                  <Play className="w-4 h-4 mr-2" />
-                  Voir la démo
-                </Button>
-              </motion.div>
             </motion.div>
 
             <motion.div
@@ -525,7 +519,7 @@ export default function HomePage() {
                 ))}
               </div>
               <p className="text-muted-foreground text-sm">
-                <span className="text-foreground font-medium">+500</span> freelances nous font confiance
+                <span className="text-foreground font-medium">+90</span> professionnels nous font confiance
               </p>
             </motion.div>
           </div>
@@ -718,76 +712,78 @@ export default function HomePage() {
         </div>
       </AnimatedSection>
 
-      {/* Beta Section */}
+      {/* Pricing Section */}
       <AnimatedSection id="pricing" className="py-20 px-6 bg-muted/30">
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <motion.div variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }}>
+              <span className="inline-block px-3 py-1 bg-card border border-border rounded-full text-muted-foreground text-xs mb-4">
+                Tarifs
+              </span>
+              <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
+                Un plan pour chaque ambition
+              </h2>
+              <p className="text-muted-foreground max-w-xl mx-auto">
+                Commencez gratuitement, puis évoluez selon vos besoins. 14 jours d'essai gratuit sur tous les plans payants.
+              </p>
+            </motion.div>
+          </div>
+
           <motion.div
-            variants={scaleIn}
+            variants={staggerContainer}
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
-            className="relative bg-card border border-border rounded-2xl p-10 md:p-14 text-center overflow-hidden"
+            className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto"
           >
-            {/* Beta badge */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-foreground text-background text-sm font-medium mb-6"
-            >
-              <motion.div
-                animate={{ rotate: [0, 10, -10, 0] }}
-                transition={{ duration: 0.5, repeat: Infinity, repeatDelay: 3 }}
-              >
-                🎉
-              </motion.div>
-              Bêta ouverte
-            </motion.div>
-
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-              Gratuit pendant la bêta
-            </h2>
-            <p className="text-muted-foreground mb-8 max-w-lg mx-auto leading-relaxed">
-              Profitez de toutes les fonctionnalités sans aucune limite.
-              Aidez-nous à façonner le futur de KodaFlow avec vos retours.
-            </p>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
-              {[
-                { icon: Users, label: 'Contacts illimités' },
-                { icon: FileText, label: 'Devis illimités' },
-                { icon: Receipt, label: 'Factures illimitées' },
-                { icon: Sparkles, label: 'IA incluse' },
-              ].map((item, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.1 }}
-                  viewport={{ once: true }}
-                  className="flex flex-col items-center gap-2 p-4"
-                >
-                  <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center">
-                    <item.icon className="w-5 h-5 text-foreground" />
-                  </div>
-                  <span className="text-sm text-foreground font-medium">{item.label}</span>
-                </motion.div>
-              ))}
-            </div>
-
-            <Link href="/signup">
-              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                <Button size="lg" className="bg-foreground text-background hover:bg-foreground/90 px-8">
-                  Rejoindre la bêta gratuitement
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
-              </motion.div>
-            </Link>
-
-            <p className="text-muted-foreground text-sm mt-6">
-              ✓ Aucune carte bancaire requise · ✓ Accès complet · ✓ Support prioritaire
-            </p>
+            <PricingCard
+              name="Gratuit"
+              price="0"
+              description="Pour démarrer votre activité"
+              features={[
+                '10 factures / mois',
+                '10 devis / mois',
+                '50 contacts',
+                '5 projets',
+                'Paiement Stripe',
+                'Envoi par email',
+              ]}
+              cta="Commencer gratuitement"
+            />
+            <PricingCard
+              name="Starter"
+              price="19"
+              description="Pour les freelances actifs"
+              popular
+              features={[
+                '100 factures / mois',
+                '100 devis / mois',
+                '500 contacts',
+                '50 projets',
+                'Tous les moyens de paiement',
+                'IA email + modèles',
+              ]}
+              cta="Essayer 14 jours gratuit"
+            />
+            <PricingCard
+              name="Pro"
+              price="49"
+              description="Pour les agences et équipes"
+              features={[
+                'Factures illimitées',
+                'Devis illimités',
+                'Contacts illimités',
+                'Projets illimités',
+                'Toutes les fonctionnalités',
+                'IA complète + Co-pilote',
+              ]}
+              cta="Essayer 14 jours gratuit"
+            />
           </motion.div>
+
+          <p className="text-center text-muted-foreground text-sm mt-8">
+            ✓ Sans engagement · ✓ Annulation à tout moment · ✓ Paiement sécurisé via Stripe
+          </p>
         </div>
       </AnimatedSection>
 
@@ -888,7 +884,7 @@ export default function HomePage() {
               Prêt à transformer votre activité ?
             </h2>
             <p className="text-background/70 mb-8 max-w-lg mx-auto relative z-10">
-              Rejoignez plus de 500 freelances qui ont déjà simplifié leur quotidien avec KodaFlow.
+              Rejoignez plus de 500 professionnels qui ont déjà simplifié leur quotidien avec KodaFlow.
             </p>
             <Link href="/signup">
               <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="relative z-10">
@@ -899,7 +895,7 @@ export default function HomePage() {
               </motion.div>
             </Link>
             <p className="text-background/50 text-sm mt-6 relative z-10">
-              ✓ 14 jours gratuit · ✓ Sans carte bancaire · ✓ Annulation libre
+              ✓ Plan gratuit disponible · ✓ 14 jours d'essai sur les plans payants · ✓ Sans engagement
             </p>
           </motion.div>
         </div>
@@ -911,9 +907,7 @@ export default function HomePage() {
           <div className="grid md:grid-cols-4 gap-8 mb-10">
             <div>
               <Link href="/" className="flex items-center gap-2.5 mb-4">
-                <div className="w-8 h-8 bg-foreground rounded-lg flex items-center justify-center">
-                  <span className="text-background font-bold text-sm">K</span>
-                </div>
+                <ThemeLogo className="w-8 h-8" />
                 <span className="text-lg font-semibold text-foreground">KodaFlow</span>
               </Link>
               <p className="text-muted-foreground text-sm leading-relaxed">
@@ -933,18 +927,17 @@ export default function HomePage() {
             <div>
               <h4 className="font-medium text-foreground mb-3 text-sm">Ressources</h4>
               <ul className="space-y-2 text-muted-foreground text-sm">
-                <li><a href="#" className="hover:text-foreground transition-colors">Documentation</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Blog</a></li>
-                <li><a href="#faq" className="hover:text-foreground transition-colors">Centre d'aide</a></li>
+                <li><Link href="/docs" className="hover:text-foreground transition-colors">Documentation</Link></li>
+                <li><Link href="/aide" className="hover:text-foreground transition-colors">Centre d'aide</Link></li>
               </ul>
             </div>
 
             <div>
               <h4 className="font-medium text-foreground mb-3 text-sm">Légal</h4>
               <ul className="space-y-2 text-muted-foreground text-sm">
-                <li><a href="#" className="hover:text-foreground transition-colors">Confidentialité</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">CGU</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Mentions légales</a></li>
+                <li><Link href="/legal/confidentialite" className="hover:text-foreground transition-colors">Confidentialité</Link></li>
+                <li><Link href="/legal/cgv" className="hover:text-foreground transition-colors">CGV / CGU</Link></li>
+                <li><Link href="/legal/mentions-legales" className="hover:text-foreground transition-colors">Mentions légales</Link></li>
               </ul>
             </div>
           </div>

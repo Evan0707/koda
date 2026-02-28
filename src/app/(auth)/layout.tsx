@@ -12,6 +12,10 @@ export default function AuthLayout({
    <div className="w-full max-w-md">
     {/* Logo */}
     <div className="text-center mb-8 relative z-10">
+     <div className="flex justify-center mb-3">
+      <img src="/LogoLightMod.svg" alt="KodaFlow" className="w-12 h-12 dark:hidden" />
+      <img src="/LogoDarkMod.svg" alt="KodaFlow" className="w-12 h-12 hidden dark:block" />
+     </div>
      <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/60">
       Koda<span className="text-foreground">Flow</span>
      </h1>

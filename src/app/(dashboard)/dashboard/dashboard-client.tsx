@@ -37,6 +37,7 @@ import {
   ActivityFeedWidget,
 } from './dashboard-widgets'
 import { CustomizeDialog } from './customize-dialog'
+import { CopilotWidget } from './copilot-widget'
 
 const CalendarDateRangePicker = dynamic(
   () => import('@/components/date-range-picker').then((mod) => mod.CalendarDateRangePicker),
@@ -92,6 +93,7 @@ export default function DashboardClient({
       case 'chart': return <RevenueChartWidget chartData={chartData} />
       case 'quickActions': return <QuickActionsWidget />
       case 'activity': return <ActivityFeedWidget activities={activities} />
+      case 'copilot': return <CopilotWidget />
       default: return null
     }
   }

@@ -200,7 +200,7 @@ export default function HelpClient() {
 
    {/* External Resources */}
    <div className="flex justify-center gap-4 text-sm text-muted-foreground">
-    <a href="#" className="flex items-center gap-1 hover:text-primary transition-colors">
+    <a href="/docs" className="flex items-center gap-1 hover:text-primary transition-colors">
      Documentation <ExternalLink className="w-3 h-3" />
     </a>
     <span>•</span>

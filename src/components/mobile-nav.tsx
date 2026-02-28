@@ -17,8 +17,7 @@ import {
  X,
 } from 'lucide-react'
 import { NavItem } from './nav-item'
-import Image from 'next/image'
-import logo from '../../assets/logo.png'
+import { ThemeLogo } from './theme-logo'
 
 const navSections = [
  {
@@ -81,8 +80,8 @@ export function MobileNav() {
       {/* Header */}
       <div className="h-16 flex items-center justify-between px-5 border-b border-sidebar-border">
        <Link href="/dashboard" className="flex items-center gap-2" onClick={() => setIsOpen(false)}>
-        <div className="w-8 h-8 bg-sidebar-primary rounded-lg flex items-center justify-center">
-         <Image src={logo} alt="Logo" className='w-full h-full object-contain rounded-lg' />
+        <div className="w-8 h-8 flex items-center justify-center">
+         <ThemeLogo className="w-8 h-8" />
         </div>
         <span className="text-lg font-semibold text-sidebar-foreground">KodaFlow</span>
        </Link>
