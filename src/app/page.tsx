@@ -609,7 +609,7 @@ export default function HomePage() {
             className="grid grid-cols-2 md:grid-cols-4 gap-8"
           >
             {[
-              { value: 500, suffix: '+', label: 'Utilisateurs actifs' },
+              { value: 100, suffix: '+', label: 'Utilisateurs actifs' },
               { value: 12, suffix: 'M€', label: 'De revenus gérés' },
               { value: 98, suffix: '%', label: 'Satisfaction client' },
               { value: 24, suffix: '/7', label: 'Support client' },
@@ -787,7 +787,7 @@ export default function HomePage() {
         </div>
       </AnimatedSection>
 
-      {/* Testimonials Section */}
+      {/* Testimonials Section (Temporarily disabled)
       <AnimatedSection id="testimonials" className="py-20 px-6">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
@@ -832,6 +832,7 @@ export default function HomePage() {
           </motion.div>
         </div>
       </AnimatedSection>
+      */}
 
       {/* FAQ Section */}
       <AnimatedSection id="faq" className="py-20 px-6 bg-muted/30">

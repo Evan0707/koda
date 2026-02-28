@@ -17,12 +17,13 @@ function createOAuth2Client() {
 }
 
 // Generate authorization URL
-export function getGmailAuthUrl() {
+export function getGmailAuthUrl(state?: string) {
   const oauth2Client = createOAuth2Client()
   return oauth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: SCOPES,
     prompt: 'consent', // Force to get refresh token every time
+    ...(state && { state }),
   })
 }
 

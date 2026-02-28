@@ -5,11 +5,13 @@ import { db, schema } from '@/db'
 import { eq } from 'drizzle-orm'
 import { getAppUrl } from '@/lib/utils'
 import { safeEncrypt } from '@/lib/encryption'
+import { cookies } from 'next/headers'
 
 export async function GET(request: NextRequest) {
  const searchParams = request.nextUrl.searchParams
  const code = searchParams.get('code')
  const error = searchParams.get('error')
+ const state = searchParams.get('state')
 
  const baseUrl = getAppUrl()
 
@@ -17,6 +19,18 @@ export async function GET(request: NextRequest) {
   console.error('Gmail OAuth error:', error)
   return NextResponse.redirect(`${baseUrl}/dashboard/settings?gmail=error&message=${encodeURIComponent(error)}`)
  }
+
+ // Validate CSRF State
+ const cookieStore = await cookies()
+ const savedState = cookieStore.get('gmail_oauth_state')?.value
+
+ if (!state || !savedState || state !== savedState) {
+  console.error('CSRF state validation failed')
+  return NextResponse.redirect(`${baseUrl}/dashboard/settings?gmail=error&message=csrf_failed`)
+ }
+
+ // Clear the state cookie after successful validation
+ cookieStore.delete('gmail_oauth_state')
 
  if (!code) {
   return NextResponse.redirect(`${baseUrl}/dashboard/settings?gmail=error&message=no_code`)
