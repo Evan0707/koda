@@ -149,59 +149,6 @@ export async function createCheckoutSession(invoiceId: string) {
 
   const baseUrl = getAppUrl()
 
-  // Check if organization is on FREE plan and has commission enabled
-  const isFreePlan = invoice.organization.plan === 'free'
-  const commissionRate = parseFloat(invoice.organization.commissionRate || '0')
-  const platformFeeAmount = isFreePlan && commissionRate > 0
-   ? Math.round((invoice.total ?? 0) * commissionRate)
-   : 0
-
-  // For FREE plan with commission, we need Stripe Connect
-  if (isFreePlan && platformFeeAmount > 0) {
-   if (!invoice.organization.stripeAccountId) {
-    return { error: 'Compte Stripe Connect non configuré. Veuillez configurer votre compte dans les paramètres.' }
-   }
-
-   // Use platform Stripe account to create session with application fee
-   const platformStripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    apiVersion: '2025-04-30.basil' as Stripe.LatestApiVersion,
-   })
-
-   const session = await platformStripe.checkout.sessions.create({
-    payment_method_types: ['card'],
-    line_items: [
-     {
-      price_data: {
-       currency: 'eur',
-       product_data: {
-        name: `Facture ${invoice.number}`,
-        description: `Paiement de la facture ${invoice.number}`,
-       },
-       unit_amount: invoice.total ?? 0,
-      },
-      quantity: 1,
-     },
-    ],
-    mode: 'payment',
-    success_url: `${baseUrl}/pay/${invoiceId}/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${baseUrl}/pay/${invoiceId}`,
-    customer_email: invoice.contact?.email || undefined,
-    payment_intent_data: {
-     application_fee_amount: platformFeeAmount,
-     transfer_data: {
-      destination: invoice.organization.stripeAccountId,
-     },
-    },
-    metadata: {
-     invoiceId: invoice.id,
-     organizationId: invoice.organizationId,
-     platformFee: platformFeeAmount.toString(),
-    },
-   })
-
-   return { url: session.url }
-  }
-
   // For paid plans (no commission), use organization's own Stripe account
   const session = await stripe.checkout.sessions.create({
    payment_method_types: ['card'],
